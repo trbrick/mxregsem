@@ -1,0 +1,23 @@
+Package: mxregsem
+Title: Regularization of models in OpenMx
+Version: 0.0.0.9000
+Authors@R: c( 
+    person(given = "Timothy R.",
+           family = "Brick",
+           role = c("aut", "cre"),
+           email = "tbrick@psu.edu"),
+    person(given = "Ross",
+           family = "Jacobucci",
+           role = c("aut"),
+           email = "rjacobuc@nd.edu"))
+Description: This is a test package, developed to test different user 
+    interfaces for using regularized SEM in OpenMx.
+License: Apache 2.0
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat
+VignetteBuilder: knitr
+RoxygenNote: 6.1.1

@@ -1,0 +1,88 @@
+---
+title: "Regularized CFA"
+author: "Ross Jacobucci and Timothy R. Brick"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Regularized CFA}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Disclaimer
+**This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
+**
+
+# Regularized CFA in mxRegSEM
+We need to load the appropriate libraries and a data set from lavaan. We'll want to switch to a different example just to avoid the dependency, but for now we can assume everybody comfortable with OpenMx is comfortable installing lavaan as well.  We'll also be using regsem with lavaan as the test case, so the dependency is there regardless.
+
+We load the example from the HolzingerSwineford data set. 
+
+```{r}
+# library(mxregsem)
+library(regsem)
+HS <- as.matrix(scale(data(HolzingerSwineford1939, package="lavaan")[,7:15]))
+```
+
+The OpenMx model is a typical CFA with latent variances and a saturated manifest means model.
+
+```{r}
+nVars <- 9
+manifest = paste0("x", 1:nVars)         # manifest variable names
+latent = c("f1")                        # latent variable name
+
+# Regularization choice from nowhere.
+pen.seq = c(0,(seq(1,sqrt(nrow(HS)),length.out=99)**2))
+pen.val <- pen.seq[40]
+
+# Model
+baseModel <- mxModel(name = "baseModel", type = "RAM", 
+                     manifestVars = manifest, latentVars = latent,
+                     
+                     # Means
+                     mxPath(from='one',to=manifest,arrows=1,free=T),
+                     
+                     # Variances
+                     mxPath(from = "f1", arrows = 2, free = T, values = 1, labels="F1_Var"),
+                     mxPath(from= manifest, arrows = 2, free = T, values = 1),
+                     
+                     #Loadings
+                     mxPath(from = "f1", to = manifest, values = 1, free = c(FALSE,rep(TRUE,nVars-1))),
+                     
+                     #Data
+                     mxData(observed = HS, type = "raw"))
+```
+
+
+The function `regularizeMxModel` creates a wrapper model that appropriately applies the regularization to any given set of OpenMx values.
+
+```{r}
+regModel <- regularizeMxModel(baseModel, reg_params = getParamsInMatrix(baseModel, "A"), penalty_value = pen.val)
+```
+
+We run normally, but need to use the specialized regularization function until we get around to integrating this into the underlying OpenMx code.
+
+```{r}
+regFit <- mxRun(regModel)
+(regsum <- summarizeRegularized(regFit))
+```
+
+
+# Comparison model in regsem
+The regsem  version of the same model is this one:
+
+```{r}
+mod.lav <- "
+f =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9"
+lav.out <- cfa(mod.lav,HS)
+summary(lav.out)
+cv.out <- cv_regsem(lav.out,pars_pen="loadings")
+cv.out
+```
+
+
+Checking for close enough fit:
+
+```{r}
+omxCheckCloseEnough(cv.out$parameters[19,1:8], coef(regFit)[1:8], .01) # basically the same -- penalty on different scales
+```
