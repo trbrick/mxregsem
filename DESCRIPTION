@@ -15,6 +15,7 @@ Description: This is a test package, developed to test different user
 License: Apache 2.0
 Encoding: UTF-8
 LazyData: true
+Depends: OpenMx
 Suggests: 
     knitr,
     rmarkdown,

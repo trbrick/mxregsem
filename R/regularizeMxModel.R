@@ -23,6 +23,10 @@
 #' @param ... arguments to the penalty function, usually `lambda=` (for lasso or ridge) and `alpha=` (for elastic net)
 #' @return A regularized MxModel; at this point a wrapper model with regularization enclosed
 #' @import OpenMx
+# @importFrom methods .hasSlot is slotNames
+#' @importFrom stats sd
+#' @export
+#' 
 regularizeMxModel <- function(model, reg_params=NULL, penalty_value = 50, penalty_function="lasso") {
 
   handledRegularizers <- c("lasso", "ridge")
