@@ -21,7 +21,7 @@ We load the example from the HolzingerSwineford data set.
 ```{r}
 # library(mxregsem)
 library(regsem)
-HS <- as.matrix(scale(data(HolzingerSwineford1939, package="lavaan")[,7:15]))
+HS <- as.matrix(scale(get(data(HolzingerSwineford1939, package="lavaan"))[,7:15]))
 ```
 
 The OpenMx model is a typical CFA with latent variances and a saturated manifest means model.
@@ -36,7 +36,7 @@ pen.seq = c(0,(seq(1,sqrt(nrow(HS)),length.out=99)**2))
 pen.val <- pen.seq[40]
 
 # Model
-baseModel <- mxModel(name = "baseModel", type = "RAM", 
+baseModel <- mxModel("baseModel", type = "RAM", 
                      manifestVars = manifest, latentVars = latent,
                      
                      # Means
