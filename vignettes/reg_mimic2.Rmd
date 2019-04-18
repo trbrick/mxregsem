@@ -1,0 +1,106 @@
+---
+title: "Regularized CFA"
+author: "Ross Jacobucci and Timothy R. Brick"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Regularized CFA}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Disclaimer
+**This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
+**
+
+# Regularized MIMIC model in mxRegSEM
+We need to load the appropriate libraries and a data set from lavaan. We'll want to switch to a different example just to avoid the dependency, but for now we can assume everybody comfortable with OpenMx is comfortable installing lavaan as well.  We'll also be using regsem with lavaan as the test case, so the dependency is there regardless.
+
+We load the example from the HolzingerSwineford data set. 
+
+```{r}
+library(mxregsem)
+library(regsem)
+mimicHS <- as.matrix(scale(HolzingerSwineford1939[,c(2,3,6,7:15)]))
+```
+
+
+The OpenMx model looks like this:
+
+```{r}
+# Specify variables
+indicators <- paste0("x", 1:9)
+covariates <- c("sex","ageyr","grade")
+manifests <- c(indicators, covariates)
+latents = c("f1") # latent variable name
+
+# Build the model
+mimicModel <- mxModel("MIMIC", type="RAM", 
+                      manifestVars = manifests, latentVars = latents,
+                      
+                      # Saturated Predictor Covariances:
+                      mxPath(covariates, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
+
+                      # Error variances:
+                      mxPath(from=c(manifests, latents), arrows=2, free=TRUE, values=1),
+                      
+                      # Means (saturated means model):
+                      mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates)))),
+                      
+                      # Loadings:
+                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1))),
+                      
+                      # Covariate paths
+                      mxPath(from=covariates, to="f1", labels=paste0("reg", 1:length(covariates))),
+                      
+                      # Data
+                      mxData(observed = mimicHS, type = "raw"))
+mimicModel <- mxModel(mimicModel,
+                      mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = pen.val)
+                      )
+```
+
+Not strictly necessary, but to ensure convergence, we'll tryhard on the fit.
+
+```{r}
+regMIMIC <- mxTryHard(mimicModel, extraTries = 40)
+```
+
+
+## Comparison model in regsem:
+
+```{r}
+# regsem
+mimic.lavmod <- "
+f1 =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9
+f1 ~ sex + ageyr +grade
+"
+mimic.lavout <- sem(mimic.lavmod,mimicHS)
+summary(mimic.lavout)
+
+mimic.cvout <- cv_regsem(mimic.lavout)
+```
+
+
+There's some annoyance in trying to line up the names for easy comparison, but here we go:
+
+```{r}
+# Organize names
+params <- summary(regMIMIC)$parameters
+oneway <- grep("A[\\[]", params$name)
+twoway <- grep("S[\\[]", params$name)
+means <- grep("M[\\[]", params$name)
+named <- startsWith(params$name, prefix = "reg")
+estimates <- params$Estimate
+names(estimates)[named] <- c("sex -> f1", "ageyr -> f1", "grade -> f1")
+names(estimates)[oneway] <- paste(params$col[oneway], '->', params$row[oneway])
+names(estimates)[twoway] <- paste(params$col[twoway], '~~', params$row[twoway])
+names(estimates)[means] <- paste(params$col[means], '~~', 1)
+matches <- intersect(names(mimic.cvout$parameters[19,]), names(estimates))
+```
+
+And finally we test the results:
+
+```{r}
+omxCheckCloseEnough(mimic.cvout$parameters[19,matches], estimates[matches], .02) # First approximation.
+```

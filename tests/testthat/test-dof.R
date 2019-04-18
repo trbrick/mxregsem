@@ -8,14 +8,16 @@ test_that("DOF computation", {
                         mxPath("one", "X", values=.5, free=TRUE, label="Mean"),
                         # True mean very non-zero: DoF not recovered
                         mxData(data.frame(X=rnorm(10, 10, 1)), type="raw"))
-  regTest1 <- suppressWarnings(summarizeRegularized(mxRun(regularizeMxModel(testModel1, "Mean"))))
+  testModel1 <- mxModel(testModel1, mxRegularizeLASSO("Mean", "MeanLASSO", 10))
+  regTest1 <- mxRun(testModel1)
 
 
-  testModel2 <- mxModel(testModel1, name="regModel",
+  testModel2 <- mxRename(testModel1, oldname = "noRegModel", newname = "RegModel")
+  testModel2 <- mxModel(testModel2,
                         # Alter to make True Mean Zero: one DoF recovered
                         mxData(data.frame(X=rnorm(10, 0, 1)), type="raw"))
-  regTest2 <- suppressWarnings(summarizeRegularized(mxRun(regularizeMxModel(testModel2, "Mean"))))
+  regTest2 <- suppressWarnings(mxRun(testModel2))
 
-  expect_equal(regTest1$degreesOfFreedom, 9)
-  expect_equal(regTest2$degreesOfFreedom, 10)
+  expect_equal(summary(regTest1)$degreesOfFreedom, 9)
+  expect_equal(summary(regTest2)$degreesOfFreedom, 10)
 })

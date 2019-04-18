@@ -76,9 +76,16 @@ regularizeMxModel <- function(model, reg_params=NULL, penalty_value = 50, penalt
 #' @param matrix The matrix from which to draw all associated
 #' @return a vector containing the names of parameters in a given matrix in the model
 #' @import OpenMx
+#' @export
 getParamsInMatrix <- function(model, matrix) {
-  newModel <- mxModel(model$name, model[[matrix]])
-  return(names(omxGetParameters(newModel)))
+  # browser()
+  if(is.null(model[[matrix]]) && is(model, "MxRegularizedModel")) {
+    # Regularized model passthrough
+    model <- model$submodels[[1]]
+  }
+  newModel <- OpenMx::mxModel(model$name, model[[matrix]])
+  prams <- omxGetParameters(newModel)
+  return(names(prams))
 }
 
 
@@ -223,128 +230,5 @@ summarizeRegularized <- function(regFit, ..., verbose=FALSE, penalty_function="g
   }
   retval$verbose <- verbose
   class(retval) <- "summary.mxmodel"
-  return(retval)
-}
-
-#' computeOptimizationStatistics
-#'
-#' This is overridden from OpenMx.  This function is exported for people
-#'    who already know what they are doing.
-#'
-
-computeOptimizationStatistics <- function(model, numStats, useSubmodels,
-                                          saturatedDoF, independenceDoF,
-                                          retval) {
-  # get estimated parameters
-  estimates <- model@output$estimate
-  # should saturated/independence models include means?
-  if(length(model@runstate$datalist)==1){
-    type <- model@runstate$datalist[[1]]@type
-    means <- model@runstate$datalist[[1]]@means
-    # if there's raw data, then use means in saturated/independence models
-    if(type=="raw"){
-      useMeans <- TRUE
-    } else {
-      # if there's not raw data, only use means if they're present
-      if((dim(means)[2]==1)&is.na(means[1,1])){
-        useMeans <- FALSE
-      } else{
-        useMeans <- TRUE
-      }
-    }
-    # number of variables
-    if(model@runstate$datalist[[1]]@type != 'raw'){
-      nvar <- dim(model@runstate$datalist[[1]]@observed)[2]
-    } else if( length(model@runstate$expectations) == 1 ) {
-      nvar <- length(model@runstate$expectations[[1]]@dims)
-    } else {
-      nvar <- 0
-    }
-    # if there are multiple or zero datalists, then do nothing
-  } else {
-    useMeans <- NA
-    nvar <- 0
-  }
-  # how many thresholds does each variable have (needed for saturated and independence DoF calculation)
-  # grab the expectation
-  obj <- model@runstate$expectation
-  # grab the thresholdLevels object and expected means; punt if there is more than one expectation
-  if (length(obj)==1){
-    if ("thresholdLevels" %in% slotNames(obj[[1]])){
-      thresholdLevels <- obj[[1]]@thresholdLevels
-      if (length(thresholdLevels)==0){thresholdLevels <- rep(NA, nvar)}
-    } else {
-      thresholdLevels <- rep(NA, nvar)
-    }
-  } else {
-    thresholdLevels <- NULL
-  }
-  # number of continuous variables, provided there is just one expectation
-  if (!is.null(thresholdLevels)){
-    continuous <- sum(is.na(thresholdLevels))
-  } else{
-    continuous <- NA
-  }
-  # number of thresholds in the model
-  if (!is.null(thresholdLevels)){
-    thresh <- sum(thresholdLevels, na.rm=TRUE)
-  } else{
-    thresh <- NA
-  }
-  # constraints, parameters, model degrees of freedom
-  retval[['constraints']] <- OpenMx:::calculateConstraints(model, useSubmodels)
-  retval[['estimatedParameters']] <- nrow(retval$parameters)
-  if(any(sapply(obj,function(x){"MxExpectationGREML" %in% class(x)}))){
-    retval[['estimatedParameters']] <- retval[['estimatedParameters']] +
-      sum(sapply(obj,OpenMx:::imxExtractSlot,name="numFixEff"))
-  }
-  if(!is.null(retval[['regularizedParameters']])) {
-    retval$estimatedParameters <- retval$estimatedParameters-retval$regularizedParameters
-  }
-  # browser()
-  # TODO: Intervene here!
-  if (is.null(numStats)) {
-    retval[['observedStatistics']] <- OpenMx:::observedStatistics(model, useSubmodels, sum(retval$constraints))
-  } else {
-    retval[['observedStatistics']] <- numStats
-  }
-  retval[['degreesOfFreedom']] <- retval$observedStatistics - retval$estimatedParameters
-  # calculate or populate saturated degrees of freedom
-  if(is.null(saturatedDoF)) {
-    retval[['saturatedDoF']] <- retval$observedStatistics - (nvar * (nvar-1) / 2 + continuous*(1+useMeans) + thresh)
-  } else {
-    retval[['saturatedDoF']] <- saturatedDoF
-  }
-  #The "saturated model" has no sensible definiton with GREML expectation:
-  if(any(sapply(obj,function(x){"MxExpectationGREML" %in% class(x)}))){
-    retval[['saturatedDoF']] <- NA
-  }
-  # calculate or populate independence degrees of freedom
-  if(is.null(independenceDoF)) {
-    if(!any(sapply(obj,function(x){"MxExpectationGREML" %in% class(x)}))){
-      # indDoF = 1 df per continuous variable variance + 1 df per continuous mean + 1 df per threshold
-      retval[['independenceDoF']] <- retval$observedStatistics - (continuous*(1+useMeans) + thresh)
-    } else{
-      #TODO: the GREML expectation doesn't currently have a way to know how many phenotypes there are in every case.
-      #For now, leave the GREML independence model undefined
-      # #With GREML expectation, the independence model has a variance for each phenotype, and the same fixed effects as the fitted model:
-      # retval[['independenceDoF']] <-
-      # 	retval$observedStatistics - sum(sapply(obj,function(x){length(x@yvars)})) - sum(sapply(obj,imxExtractSlot,name="numFixEff"))
-      retval[['independenceDoF']] <- NA
-    }
-  } else {
-    retval[['independenceDoF']] <- independenceDoF
-  }
-  # set NULLs to NAs
-  if (is.null(retval$saturatedDoF)) {
-    retval$SaturatedDoF <- NA
-  }
-  if (is.null(retval$independenceDoF)) {
-    retval$IndependenceDoF <- NA
-  }
-  retval[['saturatedParameters']] <- retval[['observedStatistics']] - retval[['saturatedDoF']]
-  retval[['independenceParameters']] <- retval[['observedStatistics']] - retval[['independenceDoF']]
-  # calculate fit statistics
-  retval <- OpenMx:::fitStatistics(model, useSubmodels, retval)
   return(retval)
 }
