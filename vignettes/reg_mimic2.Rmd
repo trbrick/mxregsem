@@ -33,6 +33,7 @@ indicators <- paste0("x", 1:9)
 covariates <- c("sex","ageyr","grade")
 manifests <- c(indicators, covariates)
 latents = c("f1") # latent variable name
+pen.val=50
 
 # Build the model
 mimicModel <- mxModel("MIMIC", type="RAM", 
