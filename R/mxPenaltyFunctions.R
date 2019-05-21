@@ -64,22 +64,20 @@ imxGenerateConstantPenalty <- function(penalty, matrix) {
   return(mxAlgebraFromString(paste(penalty$other$penalty), name=penalty$name))
 }
 
-imxGenerateLASSOPenalty <- function(penalty, matrix) {
-  matName <- matrix$name
+# Just an internal penalty handler for the lasso.
+imxGenerateLASSOPenalty <- function(penalty, params, hyperparms) {
+  paramName <- params$name
+  hyperparmName <- hyperparms$name
   # parameterized to easily allow free parameters or value propagation
-  lambdaVal <- penalty$hyperparameters$lambda
-  lambdaMat <- mxMatrix("Full", ncol=1, nrow=length(lambdaVal), 
-                        values=lambdaVal, name=paste0(penalty$name, "_penalty"),
-                        label=paste0(penalty$name, "_lambda"), free=FALSE)
-  algString <- paste0(lambdaMat$name, "* sum(abs(", matName, "))")
-  return(list(lambdaMat, mxAlgebraFromString(algString, name=penalty$name)))
+  algString <- paste0(hyperparmName, "[1,1] * sum(abs(", paramName, "))")
+  return(list(mxAlgebraFromString(algString, name=penalty$name)))
 }
 
-imxGenerateRidgePenalty <- function(penalty, matrix) {
+# And one for the ridge
+imxGenerateRidgePenalty <- function(penalty, matrix, hyperparms) {
   matName <- matrix$name
   # This one's just fixed for now.
-  alphaVal <- penalty$hyperparameters$alpha
-  algString <- paste0(alphaVal, "* t(", matName, ") %*% ", matName)
+  algString <- paste0(hyperparms$name, "[1,1] * t(", matName, ") %*% ", matName)
   return(mxAlgebraFromString(algString, name=penalty$name))
 }
 

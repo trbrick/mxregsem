@@ -19,7 +19,7 @@ We need to load the appropriate libraries and a data set from lavaan. We'll want
 We load the example from the HolzingerSwineford data set. 
 
 ```{r}
-library(mxRegSem)
+library(mxregsem)
 library(regsem)
 mimicHS <- as.matrix(scale(HolzingerSwineford1939[,c(2,3,6,7:15)]))
 ```
@@ -45,7 +45,7 @@ mimicModel <- mxModel("MIMIC", type="RAM",
                       mxPath(from=c(manifests, latents), arrows=2, free=TRUE, values=1),
                       
                       # Means (saturated means model):
-                      mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates)))),
+                      mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates))), free=FALSE),
                       
                       # Loadings:
                       mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1))),

@@ -16,6 +16,7 @@
 #' Regularize an MxModel
 #'
 #' Create a regularized container object that encloses an unregularized mxModel.
+#' This was the first trial; you should now just create MxModels using MxModel.
 #'
 #' @param model the original mxmodel to regularize
 #' @param reg_params the list of parameters or algebra cells regularized by this object.  The default (NULL) regularizes on all free parameters in the model.
@@ -28,7 +29,11 @@
 #' @export
 #' 
 regularizeMxModel <- function(model, reg_params=NULL, penalty_value = 50, penalty_function="lasso") {
-
+  
+   .Deprecated("mxModel", package="mxregsem", msg=paste("regularizeMxModel()",
+                           "is now deprecated. Use mxregsem's mxModel function",
+                           "and add an mxPenalty to it. See vignette(reg_cfa2).")
+                            )
   handledRegularizers <- c("lasso", "ridge")
 
   # Inputs:

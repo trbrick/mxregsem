@@ -56,10 +56,14 @@ setMethod("names", "MxPenalty", slotNames)
 ##'
 ##' @param what which parameters or model elements to regularize
 ##' @param how what kind of regularization function to use.  Currently supported: "lasso", "ridge"
-##' @param ...  Other arguments to the associated regularization functions (see mxRegularizeLASSO and mxRegularizeRidge)
+##' @param hyperparams a named list of the hyperparameter starting values. Used for initial setup.
 ##' @param name the name of the regularization object to be created
-mxRegularize <- function(what, how=names(imxRegularizationTypes), hyperparams=list(), otherArgs=list(), name) {
+##' @param other  Other arguments to the associated regularization functions (see mxRegularizeLASSO and mxRegularizeRidge)
+mxRegularize <- function(what, how=names(imxRegularizationTypes), hyperparams=list(), name=NULL, otherArgs=list()) {
     how <- match.arg(how)
+    if(is.null(name)) {
+      name <- imxUntitledName()
+    }
     if(name == "penalty_algebra") {
       stop("NYI: The name 'penalty_algebra' is reserved in regularization.  Sorry, buck-o.")
     }

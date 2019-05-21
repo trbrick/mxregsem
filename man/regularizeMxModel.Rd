@@ -21,4 +21,5 @@ A regularized MxModel; at this point a wrapper model with regularization enclose
 }
 \description{
 Create a regularized container object that encloses an unregularized mxModel.
+This was the first trial; you should now just create MxModels using MxModel.
 }

@@ -159,6 +159,9 @@ mxRegularizedAddPenalty <- function(regModel, penalties) {
       if(!is.null(regModel@matrices[[paste0(aMatch, "_Params")]])) {
         regModel@matrices[[paste0(aMatch, "_Params")]] <- NULL
       }
+      if(!is.null(regModel@matrices[[paste0(aMatch, "_Penalty")]])) {
+        regModel@matrices[[paste0(aMatch, "_Penalty")]] <- NULL
+      }
       regModel@algebras[[aMatch]] <- NULL
     }
   }
@@ -184,15 +187,27 @@ mxRegularizedAddPenalty <- function(regModel, penalties) {
       }
       
       # Add penalty to the regModel
-      penaltyMat <- mxMatrix("Full", nrow=length(paramsFree), 
+      paramsMat <- mxMatrix("Full", nrow=length(paramsFree), 
                              ncol=1, values=pVals, 
                              free=paramsFree, labels=reg_params, 
                              name=paste0(aPenalty$name, "_Params"))
-      regModel <- OpenMx::mxModel(regModel, penaltyMat)
+      regModel <- OpenMx::mxModel(regModel, paramsMat)
       # Add hyperparameters
+      if(length(aPenalty@hyperparameters) > 0) {
+        penaltyMat <- mxMatrix("Full", nrow=length(aPenalty@hyperparameters), 
+                             ncol=1, free=FALSE, 
+                             values=unlist(aPenalty@hyperparameters),
+                             name=paste0(aPenalty$name, "_Penalty"),
+                             labels=paste(aPenalty@name, 
+                                          names(aPenalty@hyperparameters), 
+                                          sep="_"),
+                            )
+        regModel <- OpenMx::mxModel(regModel, penaltyMat)
+      }
     }
+    
     regModel <- OpenMx::mxModel(regModel, 
-        imxRegularizationTypes[[aPenalty@type]](aPenalty, penaltyMat))
+        imxRegularizationTypes[[aPenalty@type]](aPenalty, paramsMat, penaltyMat))
   }
   
   # Rebuild global penalty algebra:
@@ -376,6 +391,152 @@ mxRename <- function(model, newname, oldname = NA) {
   return(model)
 }
 
+parseLikelihoodArg <- function(input, arg) {
+  input <- input[[arg]]
+  if (is.null(input)) {
+    return(input)
+  } else if (is.numeric(input)) {
+    return(input)
+  } else if (is(input, "MxModel")) {
+    name <- input@name
+    if (is.null(input@fitfunction)) {
+      stop(paste(omxQuotes(name), "model passed",
+                 "to summary function does not",
+                 "have top-level fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    if (length(input@fitfunction@result) != 1) {
+      stop(paste(omxQuotes(name), "model passed to summary",
+                 "function does not have a 1x1 matrix",
+                 "result in fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    return(input@fitfunction@result[1,1])
+  } else if(is.list(input) && length(input)==2) {
+    stop(paste("List of length two (illegal argument) passed to", omxQuotes(arg),
+               "argument of summary function. You probably meant to use",
+               "the refModels argument instead."), call. = FALSE)
+  } else {
+    stop(paste("Illegal argument passed to", omxQuotes(arg),
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
+parseDfArg <- function(input, arg) {
+  input <- input[[arg]]
+  if (is.null(input)) {
+    return(input)
+  } else if (is.numeric(input)) {
+    return(input)
+  } else if (is(input, "MxModel")) {
+    name <- input@name
+    if (is.null(input@fitfunction)) {
+      stop(paste(omxQuotes(name), "model passed",
+                 "to summary function does not",
+                 "have top-level fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    if (length(input@fitfunction@result) != 1) {
+      stop(paste(omxQuotes(name), "model passed to summary",
+                 "function does not have a 1x1 matrix",
+                 "result in fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    return(summary(input)$degreesOfFreedom)
+  } else {
+    stop(paste("Illegal argument passed to", omxQuotes(arg),
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
+parseLikelihoodArg <- function(input, arg) {
+  input <- input[[arg]]
+  if (is.null(input)) {
+    return(input)
+  } else if (is.numeric(input)) {
+    return(input)
+  } else if (is(input, "MxModel")) {
+    name <- input@name
+    if (is.null(input@fitfunction)) {
+      stop(paste(omxQuotes(name), "model passed",
+                 "to summary function does not",
+                 "have top-level fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    if (length(input@fitfunction@result) != 1) {
+      stop(paste(omxQuotes(name), "model passed to summary",
+                 "function does not have a 1x1 matrix",
+                 "result in fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    return(input@fitfunction@result[1,1])
+  } else if(is.list(input) && length(input)==2) {
+    stop(paste("List of length two (illegal argument) passed to", omxQuotes(arg),
+               "argument of summary function. You probably meant to use",
+               "the refModels argument instead."), call. = FALSE)
+  } else {
+    stop(paste("Illegal argument passed to", omxQuotes(arg),
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
+parseDfArg <- function(input, arg) {
+  input <- input[[arg]]
+  if (is.null(input)) {
+    return(input)
+  } else if (is.numeric(input)) {
+    return(input)
+  } else if (is(input, "MxModel")) {
+    name <- input@name
+    if (is.null(input@fitfunction)) {
+      stop(paste(omxQuotes(name), "model passed",
+                 "to summary function does not",
+                 "have top-level fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    if (length(input@fitfunction@result) != 1) {
+      stop(paste(omxQuotes(name), "model passed to summary",
+                 "function does not have a 1x1 matrix",
+                 "result in fitfunction in",
+                 deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+    }
+    return(summary(input)$degreesOfFreedom)
+  } else {
+    stop(paste("Illegal argument passed to", omxQuotes(arg),
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
+refToLikelihood <- function(model) {
+  if (is(model, "MxModel")) {
+    if (!model@.wasRun) stop("Reference model must be run to obtain fit indices")
+    model$output$Minus2LogLikelihood
+  } else if (is.list(model)) {
+    model[[1]]
+  } else {
+    stop(paste("Illegal argument passed to refModels",
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
+refToDof <- function(model) {
+  if (is(model, "MxModel")) {
+    if (!model@.wasRun) stop("Reference model must be run to obtain fit indices")
+    return(summary(model)$degreesOfFreedom)
+  } else if (is.list(model)) {
+    model[[2]]
+  } else {
+    stop(paste("Illegal argument passed to refModels",
+               "argument of summary function in",
+               deparse(width.cutoff = 400L, sys.call(-1))), call. = FALSE)
+  }
+}
+
 #' computeOptimizationStatistics
 #'
 #' This is overridden from OpenMx.  This function is exported for people
@@ -509,7 +670,7 @@ computeOptimizationStatistics <- function(model, numStats, useSubmodels,
 #' @return Summary object summarizing the MxRegularizedModel
 #' @import OpenMx
 #' @export
-setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, epsilon = 1e-6) {
+setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, computeRefs=FALSE, epsilon = 1e-6) {
   # summary.MxRegularizedModel <- function(object, ..., verbose=FALSE, epsilon = 1e-6) {
   regFit <- object
   # default penalty_function ("guess") looks for a "lasso" object in the container model.
@@ -522,15 +683,27 @@ setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, 
   }
   if (!is.null(dotArguments[["refModels"]])) {
     refModels <- dotArguments[["refModels"]]
+    satModel <- refModels[['Saturated']]
+    indModel <- refModels[['Independence']]
+    saturatedLikelihood <- refToLikelihood(satModel)
+    saturatedDoF <- refToDof(satModel)
+    independenceLikelihood <- refToLikelihood(indModel)
+    independenceDoF <- refToDof(indModel)
   } else {
-    refModels <- OpenMx:::mxRefModels(regFit$submodels[[1]], run=TRUE)
+    saturatedLikelihood <- parseLikelihoodArg(dotArguments, "SaturatedLikelihood")
+    saturatedDoF <- parseDfArg(dotArguments, "SaturatedDoF")
+    independenceLikelihood <- parseLikelihoodArg(dotArguments, "IndependenceLikelihood")
+    independenceDoF <- parseDfArg(dotArguments, "IndependenceDoF")
+    if(computeRefs && (is.null(saturatedDoF) || is.null(independenceDoF))) {
+      refModels <- mxRefModels(regFit$submodels[[1]], run=FALSE)
+      satModel <- OpenMx::mxRun(refModels[['Saturated']], silent=TRUE)
+      indModel <- OpenMx::mxRun(refModels[['Independence']], silent=TRUE)
+      saturatedLikelihood <- refToLikelihood(satModel)
+      saturatedDoF <- refToDof(satModel)
+      independenceLikelihood <- refToLikelihood(indModel)
+      independenceDoF <- refToDof(indModel)
+    }
   }
-  satModel <- refModels[['Saturated']]
-  indModel <- refModels[['Independence']]
-  saturatedLikelihood <- OpenMx:::refToLikelihood(satModel)
-  saturatedDoF <- OpenMx:::refToDof(satModel)
-  independenceLikelihood <- OpenMx:::refToLikelihood(indModel)
-  independenceDoF <- OpenMx:::refToDof(indModel)
   
   numObs <- dotArguments$numObs
   numStats <- dotArguments$numStats
@@ -540,7 +713,7 @@ setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, 
   for(penalty in regFit@regularizations) {
     # TODO: Manage uniqueness in a better way
     regged <- omxGetParameters(regFit, free=TRUE, labels=penalty@params)
-    zeroedOut <- regged[abs(regged) < epsilon]
+    zeroedOut <- names(regged)[abs(regged) < epsilon]
     regList <- union(regList, zeroedOut)
   }
   # Win back free parameters for any that's less than zero.
@@ -593,9 +766,11 @@ setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, 
     retval$maxAbsGradient <- agrad[ order(-agrad)[1] ]
   }
   retval <- OpenMx:::boundsMet(model, retval)
-  retval <- OpenMx:::setLikelihoods(model, saturatedLikelihood, independenceLikelihood, retval)
+  retval <- OpenMx:::setLikelihoods(regFit, saturatedLikelihood, independenceLikelihood, retval)
+  retval[["Minus2LogLikelihood"]] <- mxEvalByName(paste0(model$name, ".fitfunction"), regFit)[1,1]
   retval <- OpenMx:::setNumberObservations(numObs, regFit@runstate$datalist, regFit@runstate$fitfunctions, retval)
   retval[["regularizedParameters"]] <- regOffset
+  retval[["zeroedParameters"]] <- regList
   retval <- computeOptimizationStatistics(regFit, numStats, useSubmodels, saturatedDoF, independenceDoF, retval)
   retval$dataSummary <- OpenMx:::generateDataSummary(model, useSubmodels)
   retval$CI <- as.data.frame(regFit@output$confidenceIntervals)

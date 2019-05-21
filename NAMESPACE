@@ -2,6 +2,8 @@
 
 export(getParamsInMatrix)
 export(mxModel)
+export(mxPenaltySearch)
+export(mxPenaltySearchExternal)
 export(mxRegularizeConstant)
 export(mxRegularizeLASSO)
 export(mxRegularizeRidge)
