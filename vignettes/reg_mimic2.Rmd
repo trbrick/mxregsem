@@ -43,7 +43,7 @@ mimicModel <- OpenMx::mxModel("MIMIC",
                       # type="LISREL", manifestVars=list(exo=covariates, endo=indicators), latentVars=list(exo=colats, endo=latents),
                       
                       # Saturated Predictor Covariances:
-                      # mxPath(covariates, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
+                      mxPath(covariates, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
 
                       # Error variances:
                       mxPath(from=c(manifests, latents), arrows=2, free=TRUE, values=1),
@@ -67,7 +67,7 @@ mimicModel <- OpenMx::mxModel("MIMIC",
 
                       )
 regMimicModel <- mxModel(mimicModel,
-                      mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = pen.val)
+                      mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = 0)
                       )
 regMIMIC <- mxRun(mimicModel)
 

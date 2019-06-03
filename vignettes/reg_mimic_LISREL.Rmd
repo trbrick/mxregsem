@@ -34,8 +34,6 @@ covariates <- c("sex","ageyr","grade")
 manifests <- c(indicators, covariates)
 latents <- c("f1") # latent variable name
 colats <- paste0("l", covariates)
-pen.seq <- c(0,(seq(1,sqrt(nrow(mimicHS)),length.out=99)**2))
-pen.val <- pen.seq[40]
 
 # Build the model
 mimicModel <- mxModel("MIMIC",
@@ -51,7 +49,7 @@ mimicModel <- mxModel("MIMIC",
                       # mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates))), free=FALSE),
 
                       # Loadings:
-                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1)), lbound=.1),
+                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1))),
 
                       # Unities:
                       mxPath(from=colats, to=covariates, connect="single", arrows=1, free=FALSE, values=1),
@@ -77,6 +75,7 @@ For simplicity, we'll avoid running tryhard.
 ```{r}
 regMIMIC <- mxRun(mimicModel)
 cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, list(lambda=seq(0, .4, .005)), ebicGamma=.25)
+cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, list(lambda=seq(0, 4, .01)), ebicGamma=0.5)
 ```
 
 Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
