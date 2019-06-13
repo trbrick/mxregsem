@@ -22,7 +22,8 @@
 #' **WARNING: Dangerously assumes that fitfunction is the -2 log likelihood**
 #' **WARNING: Dangerously assumes that the model is a RAM model.**
 #' 
-#' The EBIC computation uses 
+#' The EBIC computation uses the computation from the previous regsem.
+#' It is not clear why this is the case.
 #'
 #' @param model an MxRegularizedModel object to regularize
 #' @param epsilon how close to zero is zero?
@@ -62,15 +63,19 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
   }
 
   getEBIC <- function(idx, model, search_space, ..., gamma=ebicGamma, pb=NULL) {
-    model <- omxSetParameters(model, labels=names(search_space), values=search_space[idx,])
-    tFit <- mxRun(model, silent=TRUE, unsafe=TRUE) #, beginMessage=FALSE, suppressWarnings=TRUE)
+    amodel <- omxSetParameters(model, labels=names(search_space), values=search_space[idx,])
+    amodel <- mxOption(amodel, "Calculate Hessian", "No")
+    amodel <- mxOption(amodel, "Standard Errors"  , "No")
+    tFit <- mxRun(amodel, silent=TRUE, unsafe=TRUE) #, beginMessage=FALSE, suppressWarnings=TRUE)
     tSummary <- summary(tFit, epsilon=epsilon, verbose=FALSE, refModels=NULL, computeRefs=FALSE)
     EP <- tSummary$estimatedParameters
     DF <- tSummary$degreesOfFreedom
-    ll <- mxEvalByName(paste0(tFit@submodels[[1]]$name, ".fitfunction"), tFit)[1,1]  # Danger: assumes fit function is -2LL
+    sub1 <- tFit@submodels[[1]]
+    sub1name <- tFit@submodels[[1]]$name
+    ll <- mxEvalByName(paste0(sub1name, ".fitfunction"), tFit)[1,1]  # Danger: assumes fit function is -2LL
     N <- tSummary$numObs
-    p <- length(tFit@submodels[[1]]$manifestVars)
-    nfac <- length(tFit@submodels[[1]]$latentVars)
+    p <- length(sub1$manifestVars)
+    nfac <- length(sub1$latentVars)
     
     # EBIC -- Need a better function.
     if(nfac < 1) {
@@ -98,9 +103,19 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
   }
   
   outList <- sapply(1:nrow(penaltySearch), getEBIC, search_space=penaltySearch, model=model, gamma=ebicGamma, pb=pb)
-  # browser()
-  outval <- data.frame(t(outList))
   
+  outList <- data.frame(t(outList))
+  
+  # Trying to reintegrate into an openMx model output.
+  # minmod <- unlist(outList[which.min(outList$EBIC),])
+  # tParms <- omxGetParameters(model, free=TRUE)
+  # combinedNames <- intersect(names(minmod), names(tParms))
+  # model <- omxSetParameters(model, labels=combinedNames, values=minmod[combinedNames])
+  # model <- mxModel(model, mxComputeSequence(list(
+  #                           mxComputeOnce(paste(sub1name, 
+  #                                               c('expectation',
+  #                                                 'fitfunction')
+  #                           mxComputeStandardError(),)))
 } 
 
 #' Search for an optimal penalty value  **Experimental**
@@ -118,7 +133,7 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
 #' @export
 #' 
 mxPenaltySearch <- function(model, search_space=NULL, epsilon=1e-6, ...) {
-  
+  stop("Error NYI: Internal search is not yet available. Use mxPenaltySearchExternal() for now.")
   # Check for regularization
   if(!is(model, "MxRegularizedModel")) {
     stop("Not a regularized model.")
