@@ -95,6 +95,11 @@ mxModel <- function(model = NA, ..., manifestVars = NA, latentVars = NA,
     regModel <- mxRegularizedAddPenalty(regModel, lst[filter])
   }
   lst <- lst[!filter]
+  filter <- sapply(lst, is, "MxCompute")
+  if(any(filter)) {
+    regModel <- OpenMx::mxModel(regModel, lst[filter])
+  }
+  lst <- lst[!filter]
   regModel@submodels[[1]] <- imxModelBuilder(regModel@submodels[[1]], lst, name, manifestVars,
                            latentVars, submodels, remove, independent)
   # Handle renaming
