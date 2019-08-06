@@ -44,8 +44,9 @@ mxRegularizeConstant <- function(name, penalty) {
 ##' @param lambda.min minimum lambda value (default lambda)
 ##' 
 #' @export
-mxRegularizeLASSO <- function(what, name, lambda=0, lambda.step=.01, lambda.max=.4, lambda.min=NA) {
+mxRegularizeLASSO <- function(what, name, lambda=0, lambda.step=.01, lambda.max=NA, lambda.min=NA) {
   if(is.na(lambda.min)) lambda.min=lambda
+  if(is.na(lambda.max)) lambda.max=lambda.min+40*lambda.step
   mxRegularize(what, how="LASSO", hyperparams=list(lambda=lambda), hpranges=list(lambda=seq(lambda, lambda.max, by=lambda.step)), name=name)
 }
 
@@ -73,7 +74,7 @@ mxRegularizeRidge <- function(what, name, lambda=0, lambda.step=.01, lambda.max=
 ##'
 ##' @param what A list of parameters to regularize
 ##' @param name Name of the regularizer object
-##' @param alpha strength of the mixing parameter to be applied at start (default 0.5).  Note that 0 indicates a ridge regression with penalty $\frac{lambda}{2}$, and 1 indicates a LASSO regression with penalty lambda.
+##' @param alpha strength of the mixing parameter to be applied at start (default 0.5).  Note that 0 indicates a ridge regression with penalty \deqn{\frac{lambda}{2}}{lambda / 2}, and 1 indicates a LASSO regression with penalty lambda.
 ##' @param alpha.step alpha step during penalty search (default 0.1)
 ##' @param alpha.max when to end the alpha search (default 1) 
 ##' @param lambda strength of the penalty to be applied at starting values (default 0)

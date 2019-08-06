@@ -20,7 +20,6 @@
 #' Currently only guaranteed to work for single-parameter models.
 #' Expect many changes in the interface while this is developed further.
 #' **WARNING: Dangerously assumes that fitfunction is the -2 log likelihood**
-#' **WARNING: Dangerously assumes that the model is a RAM model.**
 #' 
 #' The EBIC computation uses the computation from the previous regsem.
 #' It is not clear why this is the case.
