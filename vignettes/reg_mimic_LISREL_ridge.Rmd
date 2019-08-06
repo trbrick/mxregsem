@@ -1,0 +1,154 @@
+---
+title: "Regularized LISREL MIMIC Model - Ridge Regression"
+author: "Ross Jacobucci and Timothy R. Brick"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Regularized LISREL MIMIC Model - Ridge Regression}
+  \VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Disclaimer
+**This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
+**
+
+# Regularized MIMIC model in mxRegSEM
+We need to load the appropriate libraries and a data set from lavaan. We'll want to switch to a different example just to avoid the dependency, but for now we can assume everybody comfortable with OpenMx is comfortable installing lavaan as well.  We'll also be using regsem with lavaan as the test case, so the dependency is there regardless.
+
+We load the example from the HolzingerSwineford data set. 
+
+```{r}
+library(mxregsem)
+library(regsem)
+mimicHS <- as.matrix(scale(na.omit(HolzingerSwineford1939[,c(7:15,2,3,6)])))
+```
+
+
+In true LISREL form, the OpenMx model looks like this:
+
+```{r}
+# Specify variables
+indicators <- paste0("x", 1:9)
+covariates <- c("sex","ageyr","grade")
+manifests <- c(indicators, covariates)
+latents <- c("f1") # latent variable name
+colats <- paste0("l_", covariates)
+
+# Build the model
+mimicModel <- mxModel("MIMIC",
+                      type="LISREL", manifestVars=list(endo=manifests), latentVars=list(endo=c(latents, colats)),
+
+                      # Saturated Predictor Covariances:
+                      mxPath(colats, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
+
+                      # Error variances:
+                      mxPath(from=c(indicators, latents, colats), arrows=2, free=TRUE, values=1),
+
+                      # Means (saturated means model):
+                      # mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates))), free=FALSE),
+
+                      # Loadings:
+                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1))),
+
+                      # Unities:
+                      mxPath(from=colats, to=covariates, connect="single", arrows=1, free=FALSE, values=1),
+                      # Covariate paths
+                      mxPath(from=colats, to="f1",  values=c(.02, -.2, .2), labels=paste0("reg", 1:length(covariates)), free=TRUE),
+
+                      # Data
+                      mxData(observed = cov(mimicHS, use="complete.obs"),
+                             type = "cov",
+                             numObs=nrow(mimicHS))
+                      )
+```
+
+In this case, we add a ridge (2-norm) penalty, which penalizes loadings based on the square of their value.
+
+```{r}
+regMimicModel <- mxModel(mimicModel,
+                    mxRegularizeRidge(what=paste0("reg", 1:length(covariates)), name="RIDGE", 
+                                      alpha = 0,
+                                      alpha.max = .4,
+                                      alpha.step=.01
+                                      )
+                    )
+```
+
+For simplicity, we'll avoid running tryhard, although that wouldn't be a bad plan in general.
+
+```{r}
+regMIMIC <- mxRun(mimicModel)
+cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, ebicGamma=0.9)
+```
+
+Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
+
+## Comparison model in regsem:
+
+```{r}
+# regsem
+mimic.lavmod <- "
+f1 =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9
+f1 ~ reg1*sex + reg2*ageyr + reg3*grade
+sex ~~ ageyr
+ageyr ~~ grade
+sex ~~ grade
+"
+mimic.lavout <- sem(mimic.lavmod,mimicHS)
+summary(mimic.lavout)
+
+mimic.cvout <- cv_regsem(mimic.lavout, type="lasso", mult.start = TRUE, multi.iter = 100)
+```
+
+
+There's some annoyance in trying to line up the names for easy comparison, but here we go:
+
+```{r}
+# Organize names
+nameTemplate <- summary(cvMIMIC)$parameters
+params <- nameTemplate$Estimate
+oneway <- grep("LY[\\[]", nameTemplate$name)
+twoway <- grep("[BE|TE|PS][\\[]", nameTemplate$name)
+means <-  grep("M[\\[]", nameTemplate$name)
+named <- setdiff(1:length(nameTemplate$name), union(union(oneway, twoway), means))
+names(params)[oneway] <- 
+        paste(nameTemplate$col[oneway], '->', sub("l_", "", nameTemplate$row[oneway]))
+names(params)[named] <- c("sex -> f1", "ageyr -> f1", "grade -> f1")
+
+names(params)[twoway] <- 
+        paste(gsub("l_", "", nameTemplate$col[twoway]), '~~', gsub("l_", "", nameTemplate$row[twoway]))
+names(params)[means] <-  
+        paste(gsub("l_", "", nameTemplate$col[means]), '~~', 1)
+matches <- intersect(names(mimic.cvout$final_pars), names(params))
+mxEstimates <- as.numeric(params[matches])
+names(mxEstimates) <- matches
+lvEstimates <- mimic.cvout$final_pars[matches]
+```
+
+And finally we test the results:
+
+```{r}
+omxCheckCloseEnough(lvEstimates, mxEstimates, .04) # First approximation.
+for(i in 1:length(lvEstimates))
+omxCheckWithinPercentError(lvEstimates[i], mxEstimates[i], 3)
+cbind(regsem=lvEstimates,mxregsem=round(mxEstimates, 3),
+      pcterror=round(((lvEstimates-mxEstimates+1e-4)/(lvEstimates+.1e-4))*100, 1),
+      abserror=round((lvEstimates-mxEstimates), 3))
+```
+
+
+```{r}
+# Plotting checks
+plot(mimic.cvout$fits[,"lambda"], mimic.cvout$fits[,"BIC"])
+mxRegOuts <- cvMIMIC$output$regularizationSearchOutcomes
+lines(mxRegOuts[,"RIDGE_alpha"], mxRegOuts[,"EBIC"])
+```
+
+```{r}
+plot(mxRegOuts[,"RIDGE_alpha"], mxRegOuts[,"EBIC"])
+plot(mxRegOuts[,"DF"], mxRegOuts[,"EBIC"])
+# plotReg(mxRegOuts, mimicModel)
+```
+
+

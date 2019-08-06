@@ -118,7 +118,32 @@ imxGeneratePenaltyRidge <- function(penalty, matrix, hyperparms) {
   return(mxAlgebraFromString(algString, name=penalty$name))
 }
 
+# And one for the ridge
+imxGeneratePenaltyElasticNet <- function(penalty, matrix, hyperparms) {
+  matName <- matrix$name
+  hyperparmName <- hyperparms$name
+  # Lambda * [
+  #           (1-alpha) * sqrt(t(vec) %*% vec) +  # ridge
+  #           alpha * sum(abs(vec))               # LASSO
+  #]
+  
+  algString <- paste0(hyperparmName, "[1,1] * (",
+    "(1-", hyperparmName, "[2,1]) * t(", matName, ") %*% ", matName, ") + ",
+    hyperparmName, "[2,1] * sum(abs(", matName, "))" )
+  return(mxAlgebraFromString(algString, name=penalty$name))
+}
+
+imxGeneratePenaltyAdaptiveLASSO <- function(penalty, matrix, hyperparms) {
+  matName <- matrix$name
+  # Needs a compute plan to complete.
+  algString <- paste0(hyperparms$name, "[1,1] * t(", matName, ") %*% ", matName)
+  return(mxAlgebraFromString(algString, name=penalty$name))
+}
+
 # Register regularizers here:
-imxRegularizationTypes <- list(LASSO=imxGenerateLASSOPenalty, 
-                               ridge=imxGenerateRidgePenalty,
-                               constant=imxGenerateConstantPenalty)
+imxRegularizationTypes <- list(LASSO=imxGeneratePenaltyLASSO, 
+                               ridge=imxGeneratePenaltyRidge,
+                               constant=imxGeneratePenaltyConstant,
+                               elasticNet=imxGeneratePenaltyElasticNet
+                               )
+
