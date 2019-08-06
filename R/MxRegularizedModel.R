@@ -27,6 +27,32 @@ setClass(Class = "MxRegularizedModel",
          ),
          contains = "MxModel")
 
+publicMxRegularizedModelSlots <- c("name", "submodels", "output", "compute", "options", "intervals", "penalty") # accessible via model$
+visibleMxRegularizedModelSlots <- c("name", "options", "compute", "output", "intervals", "penalty")
+settableMxRegularizedModelSlots <- c("submodels", "compute", "options", "penalty")
+
+
+setMethod("$", "MxRegularizedModel", 	function(x, name) {
+  result <- OpenMx:::imxExtractMethod(x, name)
+  if(name %in% publicMxRegularizedModelSlots) {
+    result <- OpenMx:::imxExtractSlot(x, name)
+  } else {
+    result <- eval(substitute(x$submodels[[1]]$nrm,list(nrm=name)))
+  }
+  return(result)
+})
+
+setReplaceMethod("$", "MxRegularizedModel",
+                 function(x, name, value) {
+                   if(name %in% settableMxRegularizedModelSlots) {
+                     return(imxReplaceMethod(x, name, value))
+                   } else {
+                     eval(substitute(x@submodels[[1]]$nrm <- value, list(nrm=name)))
+                     return(x)
+                   }
+                 }
+)
+
 imxInitRegularizedModel <- function(submodel1) {
             model <- new("MxRegularizedModel")
             model@submodels[[submodel1$name]] <- submodel1

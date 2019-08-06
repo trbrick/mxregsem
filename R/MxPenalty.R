@@ -27,16 +27,20 @@ setClass(Class = "MxPenalty",
            type = "character",
            params = "character",
            hyperparameters = "list",
+           hpranges = "list",
+           compute="MxCompute",
            other = "list"
           )
          )
 
 setMethod("initialize", "MxPenalty",
-          function(.Object, name, type, reg_params, hyperparams=NULL, otherArgs=NULL) {
+          function(.Object, name, type, reg_params, hyperparams=NULL, hpranges=NULL, compute=NULL, otherArgs=NULL) {
             .Object@name <- name
             .Object@type <- type
             .Object@params <- reg_params
             .Object@hyperparameters <- hyperparams
+            .Object@hpranges <- hpranges
+            .Object@compute <- compute
             .Object@other <- otherArgs
             return(.Object)
           }
@@ -57,9 +61,16 @@ setMethod("names", "MxPenalty", slotNames)
 ##' @param what which parameters or model elements to regularize
 ##' @param how what kind of regularization function to use.  Currently supported: "lasso", "ridge"
 ##' @param hyperparams a named list of the hyperparameter starting values. Used for initial setup.
+##' @param hpranges a named list of hyperparameter ranges. Used in search if no ranges are specified.
+##' @param compute a compute object.  If it contains at least one mxComputeDefault, any compute plan supplied by the user will be substituted for that object each time it occurs in the plan.
 ##' @param name the name of the regularization object to be created
 ##' @param other  Other arguments to the associated regularization functions (see mxRegularizeLASSO and mxRegularizeRidge)
-mxRegularize <- function(what, how=names(imxRegularizationTypes), hyperparams=list(), name=NULL, otherArgs=list()) {
+mxRegularize <- function(what, how=names(imxRegularizationTypes), 
+                         hyperparams=list(), 
+                         hpranges=list(), 
+                         name=NULL,
+                         compute=mxComputeDefault(),
+                         otherArgs=list()) {
     how <- match.arg(how)
     if(is.null(name)) {
       name <- imxUntitledName()
@@ -67,5 +78,7 @@ mxRegularize <- function(what, how=names(imxRegularizationTypes), hyperparams=li
     if(name == "penalty_algebra") {
       stop("NYI: The name 'penalty_algebra' is reserved in regularization.  Sorry, buck-o.")
     }
-    new("MxPenalty", name=name, type=how, reg_params=what, hyperparams=hyperparams, otherArgs=otherArgs)
+    new("MxPenalty", name=name, type=how, reg_params=what, 
+        hyperparams=hyperparams,
+        hpranges=hpranges, compute=compute, otherArgs=otherArgs)
 }
