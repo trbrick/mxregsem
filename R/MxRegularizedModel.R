@@ -126,6 +126,7 @@ mxModel <- function(model = NA, ..., manifestVars = NA, latentVars = NA,
     regModel <- OpenMx::mxModel(regModel, lst[filter])
   }
   lst <- lst[!filter]
+  filter <- sapply(lst, is, "MxData")
   regModel@submodels[[1]] <- imxModelBuilder(regModel@submodels[[1]], lst, name, manifestVars,
                            latentVars, submodels, remove, independent)
   # Handle renaming
@@ -798,7 +799,7 @@ setMethod("summary", "MxRegularizedModel", function(object, ..., verbose=FALSE, 
   }
   retval <- OpenMx:::boundsMet(model, retval)
   retval <- OpenMx:::setLikelihoods(regFit, saturatedLikelihood, independenceLikelihood, retval)
-  retval[["Minus2LogLikelihood"]] <- mxEvalByName(paste0(model$name, ".fitfunction"), regFit)[1,1]
+  retval[["Minus2LogLikelihood"]] <- mxEvalByName(paste0(model$name, ".fitfunction"), regFit, compute=TRUE)[1,1]
   retval <- OpenMx:::setNumberObservations(numObs, regFit@runstate$datalist, regFit@runstate$fitfunctions, retval)
   retval[["regularizedParameters"]] <- regOffset
   retval[["zeroedParameters"]] <- regList
