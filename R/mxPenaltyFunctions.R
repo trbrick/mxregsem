@@ -38,11 +38,15 @@ mxRegularizeConstant <- function(name, penalty) {
 ##'
 ##' @param what A list of parameters to regularize
 ##' @param name Name of the regularizer object
-##' @param lambda strength of the penalty to be applied
+##' @param lambda strength of the penalty to be applied at starting values (default 0)
+##' @param lambda.step step function for lambda step (default .01)
+##' @param lambda.max end of lambda range (default .4)
+##' @param lambda.min minimum lambda value (default lambda)
 ##' 
 #' @export
-mxRegularizeLASSO <- function(what, name, lambda) {
-  mxRegularize(what, how="LASSO", hyperparams=list(lambda=lambda), name=name)
+mxRegularizeLASSO <- function(what, name, lambda=0, lambda.step=.01, lambda.max=.4, lambda.min=NA) {
+  if(is.na(lambda.min)) lambda.min=lambda
+  mxRegularize(what, how="LASSO", hyperparams=list(lambda=lambda), hpranges=list(lambda=seq(lambda, lambda.max, by=lambda.step)), name=name)
 }
 
 ##' MxRegularizeRidge
@@ -51,21 +55,54 @@ mxRegularizeLASSO <- function(what, name, lambda) {
 ##'
 ##' @param what A list of parameters to regularize
 ##' @param name Name of the regularizer object
-##' @param alpha strength of the penalty to be applied
+##' @param lambda strength of the penalty to be applied at start (default 0)
+##' @param lambda.step lambda step during penalty search (default 0.01)
+##' @param lambda.max when to end the lambda search (default 0.4) 
+##' @param lambda.min minimum lambda value (default lambda)
 ##' 
 #' @export
-mxRegularizeRidge <- function(what, name, alpha) {
-  mxRegularize(what, how="ridge", hyperparams=list(alpha=alpha), name=name)
+mxRegularizeRidge <- function(what, name, lambda=0, lambda.step=.01, lambda.max=.4, lambda.min=NA) {
+  if(is.na(lambda.min)) lambda.min=lambda
+  mxRegularize(what, how="ridge", hyperparams=list(lambda=lambda),
+               hprange = list(lambda=seq(lambda, lambda.max, lambda.step)), name=name)
+}
+
+##' MxRegularizeElasticNet
+##'
+##' Elastic net regularization
+##'
+##' @param what A list of parameters to regularize
+##' @param name Name of the regularizer object
+##' @param alpha strength of the mixing parameter to be applied at start (default 0.5).  Note that 0 indicates a ridge regression with penalty $\frac{lambda}{2}$, and 1 indicates a LASSO regression with penalty lambda.
+##' @param alpha.step alpha step during penalty search (default 0.1)
+##' @param alpha.max when to end the alpha search (default 1) 
+##' @param lambda strength of the penalty to be applied at starting values (default 0)
+##' @param lambda.step step function for lambda step (default .01)
+##' @param lambda.max end of lambda range (default .4)
+##' @param lambda.min beginning of the lambda range (default lambda)
+##' @param alpha.min beginning of the alpha range (default 0)
+##' 
+##' @details Applies elastic net regularization.  Elastic net is a weighted combination of ridge and LASSO penalties.
+##' 
+#' @export
+mxRegularizeElasticNet <- function(what, name, 
+                                   alpha=0,  alpha.step=.1,  alpha.max=1,
+                                   lambda=0, lambda.step=.1, lambda.max=.4,
+                                   alpha.min=NA, lambda.min=NA) {
+  if(is.na(lambda.min)) lambda.min=lambda
+  if(is.na(alpha.min)) alpha.min=alpha
+  mxRegularize(what, how="elasticNet", hyperparams=list(alpha=alpha, lambda=lambda),
+               hprange = list(alpha=seq(alpha, alpha.max, alpha.step), lambda=seq(lambda, lambda.max, by=lambda.step)), name=name)
 }
 
 # Matching algebra-creating functions
 # Gotta be a better interface than this.
-imxGenerateConstantPenalty <- function(penalty, matrix) {
+imxGeneratePenaltyConstant <- function(penalty, matrix) {
   return(mxAlgebraFromString(paste(penalty$other$penalty), name=penalty$name))
 }
 
 # Just an internal penalty handler for the lasso.
-imxGenerateLASSOPenalty <- function(penalty, params, hyperparms) {
+imxGeneratePenaltyLASSO <- function(penalty, params, hyperparms) {
   paramName <- params$name
   hyperparmName <- hyperparms$name
   # parameterized to easily allow free parameters or value propagation
@@ -74,7 +111,7 @@ imxGenerateLASSOPenalty <- function(penalty, params, hyperparms) {
 }
 
 # And one for the ridge
-imxGenerateRidgePenalty <- function(penalty, matrix, hyperparms) {
+imxGeneratePenaltyRidge <- function(penalty, matrix, hyperparms) {
   matName <- matrix$name
   # This one's just fixed for now.
   algString <- paste0(hyperparms$name, "[1,1] * t(", matName, ") %*% ", matName)

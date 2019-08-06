@@ -33,7 +33,7 @@ indicators <- paste0("x", 1:9)
 covariates <- c("sex","ageyr","grade")
 manifests <- c(indicators, covariates)
 latents <- c("f1") # latent variable name
-colats <- paste0("l", covariates)
+colats <- paste0("l_", covariates)
 
 # Build the model
 mimicModel <- mxModel("MIMIC",
@@ -61,12 +61,16 @@ mimicModel <- mxModel("MIMIC",
                              type = "cov",
                              # means=colMeans(mimicHS, na.rm=TRUE),
                              numObs=nrow(mimicHS))
-                      # mxFitFunctionWLS(),
+                      # # mxFitFunctionWLS(),
                       # mxData(observed = data.frame(na.omit(mimicHS)), type = "raw")
 
                       )
 regMimicModel <- mxModel(mimicModel,
-                    mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = 0)
+                    mxRegularizeLASSO(what=paste0("reg", 1:length(covariates)), name="LASSO1", 
+                                      lambda = 0,
+                                      lambda.max = 4,
+                                      lambda.step=.01
+                                      )
                     )
 ```
 
@@ -74,8 +78,7 @@ For simplicity, we'll avoid running tryhard.
 
 ```{r}
 regMIMIC <- mxRun(mimicModel)
-cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, list(lambda=seq(0, .4, .005)), ebicGamma=.25)
-cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, list(lambda=seq(0, 4, .01)), ebicGamma=0.5)
+cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, ebicGamma=0.5)
 ```
 
 Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
@@ -86,7 +89,7 @@ Note that there's code 6 warning--Mx status RED--that seems to be common in thes
 # regsem
 mimic.lavmod <- "
 f1 =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9
-f1 ~ sex + ageyr +grade
+f1 ~ reg1*sex + reg2*ageyr + reg3*grade
 sex ~~ ageyr
 ageyr ~~ grade
 sex ~~ grade
@@ -94,7 +97,7 @@ sex ~~ grade
 mimic.lavout <- sem(mimic.lavmod,mimicHS)
 summary(mimic.lavout)
 
-mimic.cvout <- cv_regsem(mimic.lavout)
+mimic.cvout <- cv_regsem(mimic.lavout, type="lasso", mult.start = TRUE, multi.iter = 10)
 ```
 
 
@@ -102,34 +105,34 @@ There's some annoyance in trying to line up the names for easy comparison, but h
 
 ```{r}
 # Organize names
-print(paste0("Minimum at lambda=", cvMIMIC[which.min(cvMIMIC$EBIC), "LASSO_lambda"]))
-params <- cvMIMIC[which.min(cvMIMIC$EBIC),]
-nameTemplate <- summary(regMIMIC, computeRefs=FALSE)$parameters
-nameTemplate$modified <- nameTemplate$name
-nameTemplate$modified <- gsub("[[:punct:]]", ".", nameTemplate$name)
+nameTemplate <- summary(cvMIMIC)$parameters
+params <- nameTemplate$Estimate
 oneway <- grep("LY[\\[]", nameTemplate$name)
 twoway <- grep("[BE|TE|PS][\\[]", nameTemplate$name)
 means <-  grep("M[\\[]", nameTemplate$name)
-named <- setdiff(1:length(nameTemplate$name), c(oneway, twoway, means))
-unnamed <- setdiff(names(params), nameTemplate$modified)
-params <- params[c(nameTemplate$modified, unnamed)]  # Reorder to match template
-names(params)[named]  <- 
-        c("sex -> f1", "ageyr -> f1", "grade -> f1")
+named <- grep("reg", nameTemplate$name)
+names(params)[named] <- c("sex -> f1", "ageyr -> f1", "grade -> f1")
 names(params)[oneway] <- 
-        paste(nameTemplate$col[oneway], '->', nameTemplate$row[oneway])
+        paste(nameTemplate$col[oneway], '->', sub(".l_", "", nameTemplate$row[oneway]))
 names(params)[twoway] <- 
-        paste(nameTemplate$col[twoway], '~~', nameTemplate$row[twoway])
+        paste(gsub(".l_", "", nameTemplate$col[twoway]), '~~', gsub(".l_", "", nameTemplate$row[twoway]))
 names(params)[means] <-  
-        paste(nameTemplate$col[means], '~~', 1)
-matches <- intersect(names(mimic.cvout$parameters[19,]), names(params))
-estimates <- as.matrix(params)
+        paste(gsub(".l_", "", nameTemplate$col[means]), '~~', 1)
+matches <- intersect(names(mimic.cvout$final_pars), names(params))
+mxEstimates <- as.numeric(params[matches])
+names(mxEstimates) <- matches
+lvEstimates <- mimic.cvout$final_pars[matches]
 ```
 
 And finally we test the results:
 
 ```{r}
-omxCheckCloseEnough(mimic.cvout$final_pars[matches], estimates[1, matches], .04) # First approximation.
-cbind(regsem=mimic.cvout$final_pars[matches],mxregsem=round(estimates[1,matches], 3), pcterror=round((mimic.cvout$final_pars[matches]-estimates[1,matches])/max(mimic.cvout$final_pars[matches],.01)*100, 1), abserror=round((mimic.cvout$final_pars[matches]-estimates[1,matches]), 3))
+omxCheckCloseEnough(lvEstimates, mxEstimates, .04) # First approximation.
+for(i in 1:length(lvEstimates)) 
+  omxCheckWithinPercentError(max(lvEstimates[i],.002), max(mxEstimates[i], .002), 3)
+cbind(regsem=lvEstimates,mxregsem=round(mxEstimates, 3),
+      pcterror=round(((lvEstimates-mxEstimates)/(lvEstimates+.0001))*100, 1), 
+      abserror=round((lvEstimates-mxEstimates), 3))
 ```
 
 
@@ -138,4 +141,10 @@ cbind(regsem=mimic.cvout$final_pars[matches],mxregsem=round(estimates[1,matches]
 plot(mimic.cvout$fits[,"lambda"], mimic.cvout$fits[,"BIC"])
 lines(cvMIMIC[,"LASSO_lambda"], cvMIMIC[,"EBIC"])
 ```
+
+```{r}
+plot(cvMIMIC[,"LASSO_lambda"], cvMIMIC[,"EBIC"])
+plotReg(cvMIMIC, mimicModel)
+```
+
 
