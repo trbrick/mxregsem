@@ -89,7 +89,11 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
     if(nfac < 1) {
       nfac <- 1
     }
-    EBIC <- (ll) + log(N) * EP + 2*EP * gamma * log(p + nfac)
+    if(model$data$type == "raw") {
+      EBIC <- (ll)/((N)/(p+1)) + (log(N) * EP + 2*EP * gamma * log(p+nfac))
+    } else {
+      EBIC <- (ll) + log(N) * EP + 2*EP * gamma * log(p + nfac)
+    }
     params <- omxGetParameters(tFit)
     # Progress!
     if(!is.null(pb)) {
@@ -112,7 +116,10 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
   
   outList <- sapply(1:nrow(penaltySearch), getEBIC, search_space=penaltySearch, epsilon=epsilon, model=model, gamma=ebicGamma, pb=pb)
   
+  # Name preservation is apparently difficult.
+  tNames <- rownames(outList)
   outList <- data.frame(t(outList))
+  names(outList) <- tNames
   
   if(returnConstrained) {
     minmod <- unlist(outList[which.min(outList$EBIC),])
@@ -124,7 +131,7 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
     combinedNames <- intersect(names(minmod), names(tParms))
     tmodel <- omxSetParameters(model, labels=combinedNames, 
                                values=minmod[combinedNames], 
-                               free=fixed[combinedNames])
+                               free=!fixed[combinedNames])
     tmodel <- OpenMx::mxModel(tmodel, mxComputeDefault())
     outList <- mxTryHard(tmodel)
     otherNames <- setdiff(names(minmod), names(tParms))
@@ -137,6 +144,8 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
     tParms <- omxGetParameters(model, free=TRUE)
     combinedNames <- intersect(names(minmod), names(tParms))
     combinedNames <- setdiff(combinedNames, tRegs)
+    # Filter unnamed, which somehow choke everything.
+    combinedNames <- setdiff(combinedNames, grep("[[]", combinedNames, value = TRUE))
     tmodel <- omxSetParameters(model, labels=combinedNames, 
                                values=minmod[combinedNames], 
                                free=TRUE)

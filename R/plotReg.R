@@ -15,6 +15,10 @@
 
 # This file contains plotting-focused helper functions.
 
+nameTransform <- function(nameList) {
+  nameList <- unlist(nameList)
+  return(gsub("[[:punct:]]", ".", nameList))
+}
 
 #' Plotting function to see some of the regularization outputs cleanly
 #'
@@ -24,6 +28,9 @@
 #' 
 #' @return None
 #' @import OpenMx
+#' @importFrom tidyr gather 
+#' @importFrom dplyr %>% select
+#' @importFrom ggplot2 ggplot geom_line facet_grid aes_string facet_grid
 #' 
 #' @export
 #' 
@@ -40,13 +47,17 @@ plotReg <- function(model) {
       meltResult <- regSearchResult %>% 
         dplyr::select(params, hparams, "EBIC") %>%
         tidyr::gather("Variable", "Value", -(hparams))
-        ggplot(meltResult, aes_string(x = hparams[1], y="Value")) + geom_line() + facet_grid(Variable ~ ., scales = "free_y")
+        print(ggplot2::ggplot(meltResult, ggplot2::aes_string(x = hparams[1], y="Value")) + 
+                ggplot2::geom_line() + 
+                ggplot2::facet_grid(Variable ~ ., scales = "free_y"))
     } else {
       meltResult <- regSearchResult %>% 
         dplyr::select(params, hparams, "EBIC", "DF", "ll") %>%
         tidyr::gather("Variable", "Value", -(hparams)) 
         for(hp in hparams) {
-          print(ggplot(meltResult, aes_string(x = hp, y="Value", color="Variable")) + geom_line( aes_string(group=setdiff(hparams, hp), color=setdiff(hparams, hp))) + facet_grid(Variable ~ ., scales = "free_y"))
+          print(ggplot2::ggplot(meltResult, ggplot2::aes_string(x = hp, y="Value", color="Variable")) + 
+                  ggplot2::geom_line( ggplot2::aes_string(group=setdiff(hparams, hp), color=setdiff(hparams, hp))) + 
+                  ggplot2::facet_grid(Variable ~ ., scales = "free_y"))
         }
       }
   }
