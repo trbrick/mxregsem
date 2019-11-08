@@ -19,7 +19,7 @@ We need to load the appropriate libraries and a data set from lavaan. We'll want
 We load the example from the HolzingerSwineford data set. 
 
 ```{r}
-# library(mxregsem)
+library(mxregsem)
 library(regsem)
 HS <- as.matrix(scale(get(data(HolzingerSwineford1939, package="lavaan"))[,7:15]))
 ```
@@ -30,10 +30,6 @@ The OpenMx model is a typical CFA with latent variances and a saturated manifest
 nVars <- 9
 manifest = paste0("x", 1:nVars)         # manifest variable names
 latent = c("f1")                        # latent variable name
-
-# Regularization choice from nowhere.
-pen.seq = c(0,(seq(1,sqrt(nrow(HS)),length.out=99)**2))
-pen.val <- pen.seq[40]
 
 # Model
 baseModel <- mxModel("baseModel", type = "RAM", 
@@ -57,14 +53,24 @@ baseModel <- mxModel("baseModel", type = "RAM",
 The function `regularizeMxModel` creates a wrapper model that appropriately applies the regularization to any given set of OpenMx values.
 
 ```{r}
-regModel <- regularizeMxModel(baseModel, reg_params = getParamsInMatrix(baseModel, "A"), penalty_value = pen.val)
+regModel <- mxModel(baseModel, 
+                    mxRegularizeLASSO(what=getParamsInMatrix(baseModel, "A"), 
+                                        # Reg choice here kind of arbitrary
+                                        lambda=0, 
+                                        lambda.min =0, 
+                                        lambda.step=1, 
+                                        lambda.max=60,
+                                        name="LASSO"
+                                      )
+                    )
 ```
 
 We run normally, but need to use the specialized regularization function until we get around to integrating this into the underlying OpenMx code.
 
 ```{r}
-regFit <- mxRun(regModel)
-(regsum <- summarizeRegularized(regFit))
+regFit <- mxPenaltySearchExternal(regModel, epsilon = 1e-1, ebicGamma = 1)
+(regsum <- summary(regFit))
+plotReg(regFit)
 ```
 
 
@@ -76,7 +82,7 @@ mod.lav <- "
 f =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9"
 lav.out <- cfa(mod.lav,HS)
 summary(lav.out)
-cv.out <- cv_regsem(lav.out,pars_pen="loadings")
+cv.out <- cv_regsem(lav.out, pars_pen="loadings", lambda.start = 0, jump = .01, n.lambda = 100)
 cv.out
 ```
 
@@ -84,5 +90,8 @@ cv.out
 Checking for close enough fit:
 
 ```{r}
-omxCheckCloseEnough(cv.out$parameters[19,1:8], coef(regFit)[1:8], .01) # basically the same -- penalty on different scales
+cbind(cv.out$parameters[19,1:8], coef(regFit)[1:8], cv.out$parameters[19,1:8]-coef(regFit)[1:8])
+omxCheckCloseEnough(cv.out$parameters[19,1:8], coef(regFit)[1:8], .02) 
 ```
+
+We'll call that close enough, I think.

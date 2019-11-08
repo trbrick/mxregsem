@@ -5,8 +5,8 @@ date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Regularized CFA}
-  \VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
+  \VignetteEngine{knitr::rmarkdown}
 ---
 
 # Disclaimer
@@ -19,6 +19,7 @@ We need to load the appropriate libraries and a data set from lavaan. We'll want
 We load the example from the HolzingerSwineford data set. 
 
 ```{r}
+Sys.setenv(OMP_NUM_THREADS=parallel::detectCores())
 library(mxregsem)
 library(regsem)
 mimicHS <- as.matrix(scale(na.omit(HolzingerSwineford1939[,c(7:15,2,3,6)])))
@@ -68,7 +69,7 @@ mimicModel <- mxModel("MIMIC",
 regMimicModel <- mxModel(mimicModel,
                     mxRegularizeLASSO(what=paste0("reg", 1:length(covariates)), name="LASSO1", 
                                       lambda = 0,
-                                      lambda.max = 4,
+                                      lambda.max = 10,
                                       lambda.step=.01
                                       )
                     )
@@ -79,6 +80,7 @@ For simplicity, we'll avoid running tryhard.
 ```{r}
 regMIMIC <- mxRun(mimicModel)
 cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=1e-4, ebicGamma=0.5)
+plotReg(cvMIMIC)
 ```
 
 Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
@@ -97,7 +99,7 @@ sex ~~ grade
 mimic.lavout <- sem(mimic.lavmod,mimicHS)
 summary(mimic.lavout)
 
-mimic.cvout <- cv_regsem(mimic.lavout, type="lasso", mult.start = TRUE, multi.iter = 10)
+mimic.cvout <- cv_regsem(mimic.lavout, type="lasso", mult.start = TRUE, multi.iter = 20)
 ```
 
 
@@ -135,16 +137,17 @@ cbind(regsem=lvEstimates,mxregsem=round(mxEstimates, 3),
       abserror=round((lvEstimates-mxEstimates), 3))
 ```
 
+Not a bad match.
 
 ```{r}
-# Plotting checks
-plot(mimic.cvout$fits[,"lambda"], mimic.cvout$fits[,"BIC"])
-lines(cvMIMIC[,"LASSO_lambda"], cvMIMIC[,"EBIC"])
+# Plotting checks: Regsem color plot:
+plot(mimic.cvout)
 ```
 
 ```{r}
-plot(cvMIMIC[,"LASSO_lambda"], cvMIMIC[,"EBIC"])
-plotReg(cvMIMIC, mimicModel)
+# Plotting checks: mxRegSem regPlot
+plotReg(cvMIMIC)
 ```
+
 
 
