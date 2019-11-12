@@ -105,13 +105,13 @@ ramCov <- mxModel("RAMCov", type="RAM", manifestVars =c(outcomes, predictors), l
 )
 
 ramCov <- mxModel(ramCov,                   # Regularization
-                  mxRegularizeLASSO(regLabels, "LASSO", lambda=0, lambda.min=0, lambda.step=.04, lambda.max=5)
+                  mxRegularizeLASSO(regLabels, "LASSO", lambda=0, lambda.min=0, lambda.step=.04, lambda.max=10)
 )
 ```
 
 Let's run and plot, just like above.
 ```{r}
-ramCovFit <- mxPenaltySearchExternal(ramCov, ebicGamma = 1, epsilon = .05, returnConstrained = TRUE)
+ramCovFit <- mxPenaltySearchExternal(ramCov, ebicGamma = 1, epsilon = .01, returnConstrained = TRUE)
 summary(ramCovFit)
 plotReg(ramCovFit)
 ```
@@ -151,7 +151,7 @@ ramFIML <- mxModel("RAMFIML", type="RAM", manifestVars =c(outcomes, predictors),
 )
 
 ramFIML <- mxModel(ramFIML,                   # Regularization
-                  mxRegularizeLASSO(regLabels, "LASSO", lambda=0, lambda.min=0, lambda.step=.04, lambda.max=5)
+                  mxRegularizeLASSO(regLabels, "LASSO", lambda=0, lambda.min=0, lambda.step=.04, lambda.max=10)
 )
 ```
 

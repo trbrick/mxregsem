@@ -11,7 +11,7 @@ vignette: >
 
 # Disclaimer
 **This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
-**z
+**
 
 # Regularized MIMIC model in mxRegSEM
 We need to load the appropriate libraries and a data set from lavaan. We'll want to switch to a different example just to avoid the dependency, but for now we can assume everybody comfortable with OpenMx is comfortable installing lavaan as well.  We'll also be using regsem with lavaan as the test case, so the dependency is there regardless.

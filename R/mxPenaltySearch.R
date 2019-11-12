@@ -39,7 +39,7 @@
 #' @importFrom stats sd
 #' @export
 #' 
-mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ..., approach="EBIC", ebicGamma=.5, returnConstrained=FALSE, verbose=TRUE) {
+mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ..., approach="EBIC", ebicGamma=.5, returnConstrained=FALSE, verbose=interactive()) {
   
   # Check for regularization
   if(!is(model, "MxRegularizedModel") || length(model@regularizations) < 1) {
@@ -84,13 +84,14 @@ mxPenaltySearchExternal <- function(model, search_space=NULL, epsilon=1e-6, ...,
     N <- tSummary$numObs
     p <- length(sub1$manifestVars)
     nfac <- length(sub1$latentVars)
+    cvDF <-((p*p+1)/2 + p - EP)/DF  # Basic conversion factor from raw data.
     
     # EBIC -- Need a better function.
     if(nfac < 1) {
       nfac <- 1
     }
     if(model$data$type == "raw") {
-      EBIC <- (ll)/((N)/(p+1)) + (log(N) * EP + 2*EP * gamma * log(p+nfac))
+      EBIC <- (ll)*cvDF + (log(N) * EP + 2*EP * gamma * log(p+nfac))
     } else {
       EBIC <- (ll) + log(N) * EP + 2*EP * gamma * log(p + nfac)
     }
