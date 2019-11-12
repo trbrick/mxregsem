@@ -1,15 +1,26 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
 # mxregsem
-Testing ground repository for regularized OpenMx.
 
-Note that this is all still very much in testing.
-Expect regular changes to interface and functionality.
+<!-- badges: start -->
 
-# Features To Be Implemented:
-- Test model with joint ordinal and missing data
-- Regularization parameter search
-  - Easy-to-run multiparameter searches
-  - Parallel multiparameter searches
+<!-- badges: end -->
 
+## What is this?
 
-# TODOs:
-- Improve penalty-matrix name handling
+The `mxregsem` package is an R package for applying regularization
+techniques to models in the extended Structural Equation Modeling (xSEM)
+framework. The goal of mxregsem is to provide flexible and expandable
+means of implementing regularization to allow users to easily develop
+and test new approaches to and applications of regularization in xSEM
+models.
+
+## Installation
+
+You can install the latest version of mxregsem with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("trbrick/mxregsem")
+```

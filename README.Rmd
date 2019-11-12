@@ -1,0 +1,32 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# mxregsem
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+## What is this?
+The `mxregsem` package is an R package for applying regularization techniques to models in the extended Structural Equation Modeling (xSEM) framework.  The goal of mxregsem is to provide flexible and expandable means of implementing regularization to allow users to easily develop and test new approaches to and applications of regularization in xSEM models.
+
+## Installation
+
+You can install the latest version of mxregsem with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("trbrick/mxregsem")
+```
+
