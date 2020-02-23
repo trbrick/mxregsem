@@ -6,7 +6,7 @@
 \usage{
 mxPenaltySearchExternal(model, search_space = NULL, epsilon = 1e-06,
   ..., approach = "EBIC", ebicGamma = 0.5, returnConstrained = FALSE,
-  verbose = TRUE)
+  verbose = interactive())
 }
 \arguments{
 \item{model}{an MxRegularizedModel object to regularize}

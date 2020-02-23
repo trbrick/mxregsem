@@ -21,7 +21,8 @@ We load the example from the HolzingerSwineford data set.
 ```{r}
 library(mxregsem)
 library(regsem)
-mimicHS <- as.matrix(scale(na.omit(HolzingerSwineford1939[,c(2,3,6,7:15)])))
+mimicHS <- as.matrix(HolzingerSwineford1939[,c(2,3,6,7:15)])
+covMIMIC <- cov(mimicHS, use="pairwise.complete")
 ```
 
 
@@ -34,31 +35,33 @@ covariates <- c("sex","ageyr","grade")
 manifests <- c(indicators, covariates)
 latents <- c("f1") # latent variable name
 colats <- paste0("var", indicators)
-pen.seq <- c(0,(seq(1,sqrt(nrow(mimicHS)),length.out=99)**2))
+pen.seq <- c(0,(seq(1,sqrt(nrow(mimicHS)),length.out=50)**2))
 pen.val <- pen.seq[40]
 
 # Build the model
-mimicModel <- OpenMx::mxModel("MIMIC", 
+mimicModel <- mxModel("MIMIC", 
                       type="RAM", manifestVars=manifests, latentVars=latents,
                       # type="LISREL", manifestVars=list(exo=covariates, endo=indicators), latentVars=list(exo=colats, endo=latents),
                       
                       # Saturated Predictor Covariances:
-                      mxPath(covariates, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
+                      mxPath(covariates, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2, labels=c("C_sex_ageyr", "C_sex_grade", "C_ageyr_grade")),
 
                       # Error variances:
-                      mxPath(from=c(manifests, latents), arrows=2, free=TRUE, values=1),
+                      mxPath(from=c(manifests, latents), arrows=2, free=TRUE, connect="single", values=1, labels=paste0("V_", c(manifests, latents))),
                       
                       # Means (saturated means model):
                       # mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates))), free=FALSE),
                       
                       # Loadings:
-                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1)), lbound=.1),
+                      mxPath(from="f1", to=indicators, values=1, free=c(FALSE, rep(TRUE, length(indicators)-1)), labels=paste0("F_to_", indicators)),
+                      
+                      # Fix Factor variance?
                       
                       # Covariate paths
-                      mxPath(from=covariates, to="f1",  values=c(0, -.194, .205), labels=paste0("reg", 1:length(covariates)), free=TRUE),
+                      mxPath(from=covariates, to="f1",  values=.5, labels=paste0("reg", 1:length(covariates)), free=TRUE),
                       
                       # Data
-                      mxData(observed = cov(mimicHS, use="complete.obs"),
+                      mxData(observed = covMIMIC,
                              type = "cov",
                              # means=colMeans(mimicHS, na.rm=TRUE),
                              numObs=nrow(mimicHS))
@@ -67,7 +70,7 @@ mimicModel <- OpenMx::mxModel("MIMIC",
 
                       )
 regMimicModel <- mxModel(mimicModel,
-                      mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = 0)
+                      mxRegularizeLASSO(paste0("reg", 1:length(covariates)), name="LASSO", lambda = 0, lambda.max=100, lambda.step = 1)
                       )
 regMIMIC <- mxRun(mimicModel)
 
@@ -77,10 +80,9 @@ For simplicity, we'll avoid running tryhard.
 
 ```{r}
 regMIMIC <- mxTryHard(regMimicModel)
-cvMIMIC <- mxPenaltySearchExternal(regMimicModel, list(lambda=pen.seq), ebicGamma=0, epsilon=1e-3) # seq(0,309,by=1)), ebicGamma = 0) # seq(0,1,by=.1)), ebicGamma = 0) # 
+cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=.001) # seq(0,309,by=1)), ebicGamma = 0) # pen.seq), ebicGamma=0, epsilon=1e-3) # 
 ```
 
-Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
 
 ## Comparison model in regsem:
 
@@ -93,10 +95,10 @@ sex ~~ ageyr
 ageyr ~~ grade
 sex ~~ grade
 "
-mimic.lavout <- sem(mimic.lavmod,mimicHS)
+mimic.lavout <- sem(mimic.lavmod,sample.cov=covMIMIC, sample.nobs=nrow(mimicHS))
 summary(mimic.lavout)
 
-mimic.cvout <- cv_regsem(mimic.lavout)
+mimic.cvout <- cv_regsem(mimic.lavout, mult.start = TRUE, jump=.001, n.lambda=70)
 ```
 
 
@@ -104,40 +106,30 @@ There's some annoyance in trying to line up the names for easy comparison, but h
 
 ```{r}
 # Organize names
-print(paste0("Minimum at lambda=", cvMIMIC[which.min(cvMIMIC$EBIC), "LASSO_lambda"]))
-params <- cvMIMIC[which.min(cvMIMIC$EBIC),]
-nameTemplate <- summary(regMIMIC, computeRefs=FALSE)$parameters
-nameTemplate$modified <- nameTemplate$name
-nameTemplate$modified <- gsub("[[:punct:]]", ".", nameTemplate$name)
-oneway <- grep("A[\\[]", nameTemplate$name)
-twoway <- grep("S[\\[]", nameTemplate$name)
-means <-  grep("M[\\[]", nameTemplate$name)
-named <- setdiff(1:length(nameTemplate$name), c(oneway, twoway, means))
-unnamed <- setdiff(names(params), nameTemplate$modified)
-params <- params[c(nameTemplate$modified, unnamed)]  # Reorder to match template
-names(params)[named]  <- 
-        c("sex -> f1", "ageyr -> f1", "grade -> f1")
-names(params)[oneway] <- 
-        paste(nameTemplate$col[oneway], '->', nameTemplate$row[oneway])
-names(params)[twoway] <- 
-        paste(nameTemplate$col[twoway], '~~', nameTemplate$row[twoway])
-names(params)[means] <-  
-        paste(nameTemplate$col[means], '~~', 1)
-matches <- intersect(names(mimic.cvout$parameters[19,]), names(params))
-estimates <- as.matrix(params)
+params <- summary(regMIMIC)$parameters
+oneway <- grep("A[\\[]", params$name)
+twoway <- grep("S[\\[]", params$name)
+means <- grep("M[\\[]", params$name)
+named <- startsWith(params$name, prefix = "reg")
+estimates <- round(params$Estimate, 3)
+names(estimates)[named] <- c("sex -> f1", "ageyr -> f1", "grade -> f1")
+names(estimates)[oneway] <- paste(params$col[oneway], '->', params$row[oneway])
+names(estimates)[twoway] <- paste(params$col[twoway], '~~', params$row[twoway])
+names(estimates)[means] <- paste(params$col[means], '~~', 1)
+matches <- intersect(names(mimic.cvout$parameters[19,]), names(estimates))
 ```
 
 And finally we test the results:
 
 ```{r}
-omxCheckCloseEnough(mimic.cvout$parameters[19,matches], estimates[1, matches], .02) # First approximation.
-cbind(regsem=mimic.cvout$parameters[19,matches],mxregsem=round(estimates[1,matches], 3), pcterror=round((mimic.cvout$parameters[19,matches]-estimates[1,matches])/max(mimic.cvout$parameters[19,matches],.01)*100, 1))
+omxCheckCloseEnough(mimic.cvout$parameters[19,matches], estimates[matches], .02) # First approximation.
+cbind(regsem=mimic.cvout$parameters[19,matches],mxregsem=round(estimates[matches], 3), pcterror=round((mimic.cvout$parameters[19,matches]-estimates[matches])/max(mimic.cvout$parameters[19,matches],.01)*100, 1))
 ```
 
 
 ```{r}
 # Plotting checks
-plot(mimic.cvout$fits[,"lambda"], mimic.cvout$fits[,"BIC"])
-lines(cvMIMIC[,"LASSO_lambda"], cvMIMIC[,"EBIC"])
+plot(mimic.cvout)
+plotReg(cvMIMIC)
 ```
 
