@@ -9,6 +9,11 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
 # Disclaimer
 **This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
 **
@@ -21,32 +26,36 @@ We load the example from the HolzingerSwineford data set.
 ```{r}
 library(mxregsem)
 library(regsem)
-HS <- as.matrix(scale(get(data(HolzingerSwineford1939, package="lavaan"))[,7:15]))
+HS <- as.matrix(scale(get(data(HolzingerSwineford1939,
+                               package="lavaan"))[,7:15]))
 ```
 
 The OpenMx model is a typical CFA with latent variances and a saturated manifest means model.
 
 ```{r}
 nVars <- 9
-manifest = paste0("x", 1:nVars)         # manifest variable names
-latent = c("f1")                        # latent variable name
+manifest=paste0("x", 1:nVars)   # manifest variable names
+latent=c("f1")                  # latent variable name
 
 # Model
-baseModel <- mxModel("baseModel", type = "RAM", 
-                     manifestVars = manifest, latentVars = latent,
-                     
+baseModel <- mxModel("baseModel", type="RAM", 
+                     manifestVars=manifest, latentVars=latent,
+
                      # Means
-                     mxPath(from='one',to=manifest,arrows=1,free=T),
+                     mxPath(from='one', to=manifest, arrows=1, free=TRUE),
                      
                      # Variances
-                     mxPath(from = "f1", arrows = 2, free = T, values = 1, labels="F1_Var"),
-                     mxPath(from= manifest, arrows = 2, free = T, values = 1),
+                     mxPath(from="f1", arrows=2, free=TRUE, values=1,
+                            labels="F1_Var"),
+                     
+                     mxPath(from=manifest, arrows=2, free=TRUE, values=1),
                      
                      #Loadings
-                     mxPath(from = "f1", to = manifest, values = 1, free = c(FALSE,rep(TRUE,nVars-1))),
+                     mxPath(from="f1", to=manifest, values=1,
+                            free=c(FALSE,rep(TRUE,nVars-1))),
                      
                      #Data
-                     mxData(observed = HS, type = "raw"))
+                     mxData(observed=HS, type="raw"))
 ```
 
 
@@ -54,7 +63,7 @@ The function `regularizeMxModel` creates a wrapper model that appropriately appl
 
 ```{r}
 regModel <- mxModel(baseModel, 
-                    mxRegularizeLASSO(what=getParamsInMatrix(baseModel, "A"), 
+                    mxRegularizeLASSO(what=getParamsInMatrix(baseModel, "A"),
                                         # Reg choice here kind of arbitrary
                                         lambda=0, 
                                         lambda.min =0, 
@@ -68,7 +77,7 @@ regModel <- mxModel(baseModel,
 We run normally, but need to use the specialized regularization function until we get around to integrating this into the underlying OpenMx code.
 
 ```{r}
-regFit <- mxPenaltySearchExternal(regModel, epsilon = 1e-1, ebicGamma = 1)
+regFit <- mxPenaltySearchExternal(regModel, epsilon=1e-1, ebicGamma=1)
 (regsum <- summary(regFit))
 plotReg(regFit)
 ```
@@ -82,8 +91,8 @@ mod.lav <- "
 f =~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9"
 lav.out <- cfa(mod.lav,HS)
 summary(lav.out)
-cv.out <- cv_regsem(lav.out, pars_pen="loadings", lambda.start = 0, jump = .01, n.lambda = 100)
-cv.out
+cv.out <- cv_regsem(lav.out, pars_pen="loadings", verbose=FALSE,
+                    lambda.start=0, jump=.01, n.lambda=100)
 ```
 
 
@@ -94,4 +103,4 @@ cbind(cv.out$parameters[19,1:8], coef(regFit)[1:8], cv.out$parameters[19,1:8]-co
 omxCheckCloseEnough(cv.out$parameters[19,1:8], coef(regFit)[1:8], .02) 
 ```
 
-We'll call that close enough, I think.
+Close enough.

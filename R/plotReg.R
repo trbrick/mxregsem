@@ -57,7 +57,9 @@ plotReg <- function(model) {
         for(hp in hparams) {
           print(ggplot2::ggplot(meltResult, ggplot2::aes_string(x = hp, y="Value", color="Variable")) + 
                   ggplot2::geom_line( ggplot2::aes_string(group=setdiff(hparams, hp), color=setdiff(hparams, hp))) + 
+                  # ggplot2::geom_hline(ggplot2::aes(xin=)) +
                   ggplot2::facet_grid(Variable ~ ., scales = "free_y"))
+                  
         }
       }
   }

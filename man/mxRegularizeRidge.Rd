@@ -4,8 +4,14 @@
 \alias{mxRegularizeRidge}
 \title{MxRegularizeRidge}
 \usage{
-mxRegularizeRidge(what, name, lambda = 0, lambda.step = 0.01,
-  lambda.max = 0.4, lambda.min = NA)
+mxRegularizeRidge(
+  what,
+  name,
+  lambda = 0,
+  lambda.step = 0.01,
+  lambda.max = 0.4,
+  lambda.min = NA
+)
 }
 \arguments{
 \item{what}{A list of parameters to regularize}

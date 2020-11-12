@@ -4,9 +4,16 @@
 \alias{mxPenaltySearchExternal}
 \title{External search for an optimal penalty value}
 \usage{
-mxPenaltySearchExternal(model, search_space = NULL, epsilon = 1e-06,
-  ..., approach = "EBIC", ebicGamma = 0.5, returnConstrained = FALSE,
-  verbose = interactive())
+mxPenaltySearchExternal(
+  model,
+  search_space = NULL,
+  epsilon = 1e-06,
+  ...,
+  approach = "EBIC",
+  ebicGamma = 0.5,
+  returnConstrained = FALSE,
+  verbose = interactive()
+)
 }
 \arguments{
 \item{model}{an MxRegularizedModel object to regularize}

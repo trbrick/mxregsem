@@ -1,13 +1,17 @@
 ---
-title: "Regularized LISREL MIMIC Model - Ridge Regression"
+title: "Regularized LISREL MIMIC Model - ElasticNet Regression"
 author: "Ross Jacobucci and Timothy R. Brick"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Regularized LISREL MIMIC Model - Ridge Regression}
+  %\VignetteIndexEntry{Regularized LISREL MIMIC Model - Elastic Net}
   \VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(warning=FALSE, message=FALSE)
+```
 
 # Disclaimer
 **This is a test case for regularization of SEM in OpenMx.  Expect regular changes to the interface until we manage to get things right.
@@ -36,25 +40,30 @@ latents <- c("f1") # latent variable name
 colats <- paste0("l_", covariates)
 
 # Build the model
-mimicModel <- mxModel("MIMIC",
-                      type="LISREL", manifestVars=list(endo=manifests), latentVars=list(endo=c(latents, colats)),
+mimicModel <- mxModel("MIMIC", type="LISREL",
+                      manifestVars=list(endo=manifests),
+                      latentVars=list(endo=c(latents, colats)),
 
                       # Saturated Predictor Covariances:
-                      mxPath(colats, arrows=2, connect="unique.bivariate", free=TRUE, values=-.2),
+                      mxPath(colats, arrows=2, connect="unique.bivariate",
+                             free=TRUE, values=-.2),
 
                       # Error variances:
-                      mxPath(from=c(indicators, latents, colats), arrows=2, free=TRUE, values=1),
-
-                      # Means (saturated means model):
-                      # mxPath(from="one", to=manifests, values=c(rep(5, length(indicators)), rep(1, length(covariates))), free=FALSE),
+                      mxPath(from=c(indicators, latents, colats), arrows=2,
+                             free=TRUE, values=1),
 
                       # Loadings:
-                      mxPath(from="f1", to=indicators, values=c(1,.5,.5,2,2,2,.5,.5,.5), free=c(FALSE, rep(TRUE, length(indicators)-1))),
+                      mxPath(from="f1", to=indicators,
+                             values=c(1,.5,.5,2,2,2,.5,.5,.5), 
+                             free=c(FALSE, rep(TRUE, length(indicators)-1))),
 
                       # Unities:
-                      mxPath(from=colats, to=covariates, connect="single", arrows=1, free=FALSE, values=1),
+                      mxPath(from=colats, to=covariates, connect="single",
+                             arrows=1, free=FALSE, values=1),
                       # Covariate paths
-                      mxPath(from=colats, to="f1",  values=c(.2, .2, .2), labels=paste0("reg", 1:length(covariates)), free=TRUE),
+                      mxPath(from=colats, to="f1",  values=c(.2, .2, .2),
+                             labels=paste0("reg", 1:length(covariates)),
+                             free=TRUE),
 
                       # Data
                       mxData(observed = cov(mimicHS, use="complete.obs"),
@@ -63,14 +72,21 @@ mimicModel <- mxModel("MIMIC",
                       )
 ```
 
-In this case, we add a ridge (2-norm) penalty, which penalizes loadings based on the square of their value.
+In this case, we add am elastic net penalty. Lambda is the overall penalty weight; alpha is the tradeoff between the ridge and LASSO elements of the regression.
 
 ```{r}
 regMimicModel <- mxModel(mimicModel,
-                    mxRegularizeElasticNet(what=paste0("reg", 1:length(covariates)), name="eNet", 
-                         alpha=0,  alpha.min=0, alpha.step=.1,  alpha.max=.1, 
-                         lambda=0, lambda.step=.1, lambda.max=10
-                         )
+                    mxRegularizeElasticNet(
+                      what=paste0("reg", 1:length(covariates)), 
+                      name="eNet", 
+                        alpha=.5,       # Starting value/default if no search
+                        alpha.min=0,    # Minimum for search
+                        alpha.step=.1,  # Grid step for search
+                        alpha.max=1,    # Max for search
+                        lambda=0,       # Lambda min defaults to lambda
+                        lambda.step=.1, # Grid step for lambda
+                        lambda.max=10   # Maximum of search for lambda
+                      )
                     )
 ```
 
@@ -79,6 +95,7 @@ For simplicity, we'll avoid running tryhard, although that wouldn't be a bad pla
 ```{r}
 regMIMIC <- mxRun(mimicModel)
 cvMIMIC <- mxPenaltySearchExternal(regMimicModel, epsilon=.001, ebicGamma=0.9)
+summary(cvMIMIC)
 ```
 
 Note that there's code 6 warning--Mx status RED--that seems to be common in these cases where it's the regularization that makes the fit possible, because the model is near the identification boundary.  But notice here we've got a decent fit anyway.
@@ -97,7 +114,8 @@ sex ~~ grade
 mimic.lavout <- sem(mimic.lavmod,mimicHS)
 summary(mimic.lavout)
 
-mimic.cvout <- cv_regsem(mimic.lavout, type="enet", mult.start = TRUE, multi.iter = 100)
+mimic.cvout <- cv_regsem(mimic.lavout, type="enet", 
+                         mult.start = TRUE, multi.iter = 100, verbose=FALSE)
 ```
 
 
@@ -128,16 +146,17 @@ lvEstimates <- mimic.cvout$final_pars[matches]
 And finally we test the results:
 
 ```{r}
-omxCheckCloseEnough(lvEstimates, mxEstimates, .01) # First approximation.
+omxCheckCloseEnough(lvEstimates, mxEstimates, .02) # First approximation.
 for(i in 1:length(lvEstimates))
 omxCheckWithinPercentError(lvEstimates[i], mxEstimates[i], 5)
 cbind(regsem=lvEstimates,mxregsem=round(mxEstimates, 3),
-      pcterror=round(((lvEstimates-mxEstimates+1e-4)/(lvEstimates+.1e-4))*100, 1),
+      pcterror=round(((lvEstimates-mxEstimates+1e-4)/(lvEstimates+.1e-4))*100,
+                     1),
       abserror=round((lvEstimates-mxEstimates), 3))
 ```
 
 
-```{r}
+```{r, include=FALSE, eval=FALSE}
 # Plotting checks
 plot(mimic.cvout$fits[,"lambda"], mimic.cvout$fits[,"BIC"])
 plotReg(cvMIMIC)

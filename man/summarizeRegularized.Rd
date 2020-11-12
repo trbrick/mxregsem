@@ -4,8 +4,13 @@
 \alias{summarizeRegularized}
 \title{Regularize an MxModel}
 \usage{
-summarizeRegularized(regFit, ..., verbose = FALSE,
-  penalty_function = "guess", epsilon = 1e-06)
+summarizeRegularized(
+  regFit,
+  ...,
+  verbose = FALSE,
+  penalty_function = "guess",
+  epsilon = 1e-06
+)
 }
 \arguments{
 \item{...}{values passed to mxSummarize}

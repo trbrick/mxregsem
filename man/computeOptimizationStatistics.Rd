@@ -4,8 +4,14 @@
 \alias{computeOptimizationStatistics}
 \title{computeOptimizationStatistics}
 \usage{
-computeOptimizationStatistics(model, numStats, useSubmodels, saturatedDoF,
-  independenceDoF, retval)
+computeOptimizationStatistics(
+  model,
+  numStats,
+  useSubmodels,
+  saturatedDoF,
+  independenceDoF,
+  retval
+)
 }
 \description{
 This is overridden from OpenMx.  This function is exported for people

@@ -4,9 +4,15 @@
 \alias{mxRegularize}
 \title{This function creates a regularization penalty object}
 \usage{
-mxRegularize(what, how = names(imxRegularizationTypes),
-  hyperparams = list(), hpranges = list(), name = NULL,
-  compute = mxComputeDefault(), otherArgs = list())
+mxRegularize(
+  what,
+  how = names(imxRegularizationTypes),
+  hyperparams = list(),
+  hpranges = list(),
+  name = NULL,
+  compute = mxComputeDefault(),
+  otherArgs = list()
+)
 }
 \arguments{
 \item{what}{which parameters or model elements to regularize}

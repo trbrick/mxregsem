@@ -4,8 +4,14 @@
 \alias{mxRegularizeLASSO}
 \title{MxRegularizeLASSO}
 \usage{
-mxRegularizeLASSO(what, name, lambda = 0, lambda.step = 0.01,
-  lambda.max = NA, lambda.min = NA)
+mxRegularizeLASSO(
+  what,
+  name,
+  lambda = 0,
+  lambda.step = 0.01,
+  lambda.max = NA,
+  lambda.min = NA
+)
 }
 \arguments{
 \item{what}{A list of parameters to regularize}

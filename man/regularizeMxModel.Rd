@@ -4,8 +4,12 @@
 \alias{regularizeMxModel}
 \title{Regularize an MxModel}
 \usage{
-regularizeMxModel(model, reg_params = NULL, penalty_value = 50,
-  penalty_function = "lasso")
+regularizeMxModel(
+  model,
+  reg_params = NULL,
+  penalty_value = 50,
+  penalty_function = "lasso"
+)
 }
 \arguments{
 \item{model}{the original mxmodel to regularize}

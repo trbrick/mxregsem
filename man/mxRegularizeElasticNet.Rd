@@ -4,9 +4,18 @@
 \alias{mxRegularizeElasticNet}
 \title{MxRegularizeElasticNet}
 \usage{
-mxRegularizeElasticNet(what, name, alpha = 0, alpha.step = 0.1,
-  alpha.max = 1, lambda = 0, lambda.step = 0.1, lambda.max = 0.4,
-  alpha.min = NA, lambda.min = NA)
+mxRegularizeElasticNet(
+  what,
+  name,
+  alpha = 0,
+  alpha.step = 0.1,
+  alpha.max = 1,
+  lambda = 0,
+  lambda.step = 0.1,
+  lambda.max = 0.4,
+  alpha.min = NA,
+  lambda.min = NA
+)
 }
 \arguments{
 \item{what}{A list of parameters to regularize}

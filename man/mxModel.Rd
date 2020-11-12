@@ -4,8 +4,16 @@
 \alias{mxModel}
 \title{Create a (regularizable) mxModel}
 \usage{
-mxModel(model = NA, ..., manifestVars = NA, latentVars = NA,
-  remove = FALSE, independent = NA, type = NA, name = NA)
+mxModel(
+  model = NA,
+  ...,
+  manifestVars = NA,
+  latentVars = NA,
+  remove = FALSE,
+  independent = NA,
+  type = NA,
+  name = NA
+)
 }
 \description{
 Identical to OpenMx::mxModel, except the result is an MxRegularizedModel.
