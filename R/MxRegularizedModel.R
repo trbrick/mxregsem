@@ -100,7 +100,6 @@ setMethod("print", "MxRegularizedModel", function(x,...) {
 #' 
 mxModel <- function(model = NA, ..., manifestVars = NA, latentVars = NA,
                               remove = FALSE, independent = NA, type = NA, name = NA) {
-
   retval <- regFirstArgument(model, name)  # Reimplemented `firstArgument()` function from MxModel
   first <- retval[[1]]
   regModel <- retval[[2]]
@@ -111,8 +110,18 @@ mxModel <- function(model = NA, ..., manifestVars = NA, latentVars = NA,
     return(OpenMx::mxModel(regModel, first, ..., name=name, manifestVars=manifestVars,
                           latentVars=latentVars, remove=remove, independent=independent, type=type))
   }
+  # Filter products of variables.
+  nam <- names(list(...))
+  filter <- nam %in% c('product', 'productVars')
+  if(any(filter)) {
+    stop("Error NYI: Products of variables are not yet supported by mxRegSEM.")
+  }
+  
+  # Handle the magic first argument:
   lst <- c(first, list(...))
   lst <- unlist(lst)
+  
+  # Handle each thing as it comes through:
   filter <- sapply(lst, is, "MxModel")
   submodels <- lst[filter]
   lst <- lst[!filter]
@@ -127,8 +136,14 @@ mxModel <- function(model = NA, ..., manifestVars = NA, latentVars = NA,
   }
   lst <- lst[!filter]
   filter <- sapply(lst, is, "MxData")
-  regModel@submodels[[1]] <- imxModelBuilder(regModel@submodels[[1]], lst, name, manifestVars,
-                           latentVars, submodels, remove, independent)
+  regModel@submodels[[1]] <- imxModelBuilder(model=regModel@submodels[[1]], 
+                                             lst=lst, name=name, 
+                                             manifestVars=manifestVars,
+                                             latentVars=latentVars, 
+                                             productVars=character(),
+                                             submodels=submodels, 
+                                             remove=remove, 
+                                             independent=independent)
   # Handle renaming
   regModel <- regUpdateNames(regModel)
   
